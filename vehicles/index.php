@@ -3,22 +3,16 @@
 session_start();
 
 // Chemin racine de l'application
-$root_path = __DIR__;
+$root_path = dirname(__DIR__);
 
 // Inclure les fichiers de configuration et de fonctions
+
 if (file_exists($root_path . '/config/database.php')) {
     require_once $root_path . '/config/database.php';
-} else {
-    // Si le fichier n'existe pas, on crée un $currentUser par défaut
-    // pour éviter les erreurs
-    $currentUser = [
-        'name' => 'Utilisateur',
-        'role' => 'Admin'
-    ];
 }
 
-if (file_exists($root_path . '../includes/functions.php')) {
-    require_once $root_path . '../includes/functions.php';
+if (file_exists($root_path . '/includes/functions.php')) {
+    require_once $root_path . '/includes/functions.php';
 }
 
 // Vérifier si l'utilisateur est connecté, sinon rediriger vers la page de connexion
@@ -38,88 +32,47 @@ $currentUser = [
 
 // Inclure l'en-tête
 include '../includes/header.php';
-
+$database = new Database();
+$db = $database->getConnection();
 // Données de test pour les véhicules
-$vehicles = [
-    [
-        'id' => 1,
-        'immatriculation' => 'AB-123-CD',
-        'marque' => 'Renault',
-        'modele' => 'Clio',
-        'annee' => 2020,
-        'client' => 'Martin Dupont',
-        'kilometrage' => '45 000 km',
-        'statut' => 'actif'
-    ],
-    [
-        'id' => 2,
-        'immatriculation' => 'EF-456-GH',
-        'marque' => 'Peugeot',
-        'modele' => '308',
-        'annee' => 2019,
-        'client' => 'Sophie Martin',
-        'kilometrage' => '62 500 km',
-        'statut' => 'maintenance'
-    ],
-    [
-        'id' => 3,
-        'immatriculation' => 'IJ-789-KL',
-        'marque' => 'Citroën',
-        'modele' => 'C3',
-        'annee' => 2021,
-        'client' => 'Jean Durand',
-        'kilometrage' => '28 300 km',
-        'statut' => 'actif'
-    ],
-    [
-        'id' => 4,
-        'immatriculation' => 'MN-012-OP',
-        'marque' => 'Volkswagen',
-        'modele' => 'Golf',
-        'annee' => 2018,
-        'client' => 'Marie Petit',
-        'kilometrage' => '95 700 km',
-        'statut' => 'maintenance'
-    ],
-    [
-        'id' => 5,
-        'immatriculation' => 'QR-345-ST',
-        'marque' => 'BMW',
-        'modele' => 'Serie 3',
-        'annee' => 2022,
-        'client' => 'Pierre Leroy',
-        'kilometrage' => '18 200 km',
-        'statut' => 'actif'
-    ],
-    [
-        'id' => 6,
-        'immatriculation' => 'UV-678-WX',
-        'marque' => 'Audi',
-        'modele' => 'A3',
-        'annee' => 2020,
-        'client' => 'Lucie Bernard',
-        'kilometrage' => '42 800 km',
-        'statut' => 'actif'
-    ],
-    [
-        'id' => 7,
-        'immatriculation' => 'YZ-901-AB',
-        'marque' => 'Mercedes',
-        'modele' => 'Classe C',
-        'annee' => 2019,
-        'client' => 'Thomas Dubois',
-        'kilometrage' => '58 600 km',
-        'statut' => 'inactif'
-    ]
-];
+$vehicles = [];
+try {
+    $query = "SELECT v.id, v.immatriculation, v.marque, v.modele, v.annee, CONCAT(c.nom, ' ', c.prenom) AS client, v.kilometrage, v.statut FROM vehicules v INNER JOIN clients c ON v.client_id = c.id";
+
+$stmt = $db->prepare($query);
+    $stmt->execute();
+    
+    if ($stmt->rowCount() > 0) {
+        $vehicles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        // Client non trouvé, rediriger vers la liste
+        header('Location: index.php');
+        exit;
+    }
+} catch (PDOException $e) {
+    $errors['database'] = 'Erreur lors de la récupération du client: ' . $e->getMessage();
+}
+
 
 // Données de test pour les clients
-$clients = [
-    ['id' => 1, 'nom' => 'Dupont', 'prenom' => 'Martin'],
-    ['id' => 2, 'nom' => 'Martin', 'prenom' => 'Sophie'],
-    ['id' => 3, 'nom' => 'Durand', 'prenom' => 'Jean'],
-    ['id' => 4, 'nom' => 'Petit', 'prenom' => 'Marie']
-];
+
+$clients = [];
+try {
+    $query = "SELECT id, nom, prenom FROM clients";
+    $stmt = $db->prepare($query);
+    $stmt->execute();
+    
+    if ($stmt->rowCount() > 0) {
+        $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        // Client non trouvé, rediriger vers la liste
+        header('Location: index.php');
+        exit;
+    }
+} catch (PDOException $e) {
+    $errors['database'] = 'Erreur lors de la récupération du client: ' . $e->getMessage();
+}
+
 ?>
 
 <div class="flex h-screen bg-gray-100">
@@ -408,18 +361,17 @@ $clients = [
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div class="flex space-x-2">
                                             <button onclick="viewVehicle(<?php echo $vehicle['id']; ?>)" class="text-blue-600 hover:text-blue-900">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                                </svg>
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
                                             </button>
                                             <button onclick="editVehicle(<?php echo $vehicle['id']; ?>)" class="text-indigo-600 hover:text-indigo-900">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                 </svg>
                                             </button>
-                                            <button onclick="deleteVehicle(<?php echo $vehicle['id']; ?>)" class="text-red-600 hover:text-red-900">
+                                            <button onclick="deleteVehicle(<?php echo $vehicle['id']; ?>, event)" class="text-red-600 hover:text-red-900">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                                 </svg>
@@ -570,7 +522,6 @@ $clients = [
         </form>
     </div>
 </div>
-
 
 <!-- View Vehicle Modal -->
 <div id="viewVehicleModal" class="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50 flex items-center justify-center hidden">
@@ -788,7 +739,7 @@ $clients = [
                     <input type="text" id="edit_couleur" name="couleur" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="Gris">
                 </div>
                 <div>
-                    <label for="edit_carburant" class="block text-sm font-medium text-gray
+                    <label for="edit_carburant" class="block text-sm font-medium text-gray">
                 <div>
                     <label for="edit_carburant" class="block text-sm font-medium text-gray-700 mb-1">Type de carburant</label>
                     <select id="edit_carburant" name="carburant" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
@@ -883,24 +834,61 @@ $clients = [
 
     // Function to view vehicle details
     function viewVehicle(id) {
-        // In a real application, you would fetch vehicle details from the server
-        // For this example, we'll just open the modal with sample data
-        openModal('viewVehicleModal');
-    }
+    // Faire une requête pour récupérer les détails du véhicule depuis la base de données
+    fetch(`recuperation_vehi.php?id=${id}`)
+        .then(response => response.json())
+        .then(data => {
+            // Remplir les champs du modal avec les données récupérées
+            document.getElementById('view_immatriculation').textContent = data.immatriculation;
+            document.getElementById('view_marque').textContent = data.marque;
+            document.getElementById('view_modele').textContent = data.modele;
+            document.getElementById('view_annee').textContent = data.annee;
+            document.getElementById('view_couleur').textContent = data.couleur;
+            document.getElementById('view_carburant').textContent = data.carburant;
+            document.getElementById('view_puissance').textContent = data.puissance;
+            document.getElementById('view_client').textContent = data.client_nom; // Exemple : client_nom ou autre
+            document.getElementById('view_telephone').textContent = data.client_telephone; // Exemple : client_telephone
+            document.getElementById('view_email').textContent = data.client_email; // Exemple : client_email
+            document.getElementById('view_kilometrage').textContent = data.kilometrage;
+            document.getElementById('view_date_achat').textContent = data.date_achat;
+            document.getElementById('view_date_derniere_revision').textContent = data.date_derniere_revision;
+            document.getElementById('view_date_prochain_ct').textContent = data.date_prochain_ct;
+            document.getElementById('view_statut').textContent = data.statut;
 
-    // Function to edit vehicle
-    function editVehicle(id) {
-        // In a real application, you would fetch vehicle details from the server
-        // For this example, we'll just open the modal with sample data
-        document.getElementById('edit_id').value = id;
-        openModal('editVehicleModal');
-    }
+            // Afficher les notes
+            document.getElementById('view_notes').textContent = data.notes;
+
+            // Récupérer et afficher les interventions (historique)
+          /*   const interventionsTable = document.getElementById('view_interventions');
+            interventionsTable.innerHTML = ''; // Vider la table existante
+
+            // Ajouter les lignes des interventions
+            data.interventions.forEach(intervention => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 text-sm text-gray-500">${intervention.date}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">${intervention.type}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">${intervention.description}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">${intervention.kilometrage}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">${intervention.montant}</td>
+                `;
+                interventionsTable.appendChild(row);
+            });
+ */
+            // Afficher le modal
+            openModal('viewVehicleModal');
+        })
+        .catch(error => console.error('Erreur lors de la récupération des données du véhicule:', error));
+}
 
     // Function to delete vehicle
     function deleteVehicle(id) {
         document.getElementById('delete_id').value = id;
         openModal('deleteVehicleModal');
     }
+   
+    
+
 
     // Close modals when clicking outside
     window.onclick = function(event) {

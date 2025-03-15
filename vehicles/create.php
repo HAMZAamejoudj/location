@@ -64,13 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($_POST['kilometrage'])) {
         $errors['kilometrage'] = 'Le kilométrage est requis';
     }
-    
+   
     // Si aucune erreur, créer le véhicule
     if (empty($errors)) {
         try {
             // Préparer la requête d'insertion
-            $query = "INSERT INTO vehicules (immatriculation, client_id, marque, modele, annee, kilometrage, couleur, carburant, puissance, date_achat, date_derniere_revision, date_prochain_ct, statut, notes) 
-                     VALUES (:immatriculation, :client_id, :marque, :modele, :annee, :kilometrage, :couleur, :carburant, :puissance, :date_achat, :date_derniere_revision, :date_prochain_ct, :statut, :notes)";
+            $query = "INSERT INTO vehicules (immatriculation, client_id, marque, modele, annee, kilometrage, couleur, carburant, puissance, date_achat, date_derniere_revision, date_prochain_ct, statut, notes,date_creation) 
+                     VALUES (:immatriculation, :client_id, :marque, :modele, :annee, :kilometrage, :couleur, :carburant, :puissance, :date_achat, :date_derniere_revision, :date_prochain_ct, :statut, :notes,:date_creation)";
             
             $stmt = $db->prepare($query);
             
@@ -84,12 +84,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bindParam(':couleur', $_POST['couleur']);
             $stmt->bindParam(':carburant', $_POST['carburant']);
             $stmt->bindParam(':puissance', $_POST['puissance']);
-            $stmt->bindParam(':date_achat', $_POST['date_achat']);
-            $stmt->bindParam(':date_derniere_revision', $_POST['date_derniere_revision']);
-            $stmt->bindParam(':date_prochain_ct', $_POST['date_prochain_ct']);
+            $date_achat = date('Y-m-d', strtotime($_POST['date_achat']));
+            $stmt->bindParam(':date_achat', $date_achat);
+            $date_derniere_revision = date('Y-m-d', strtotime($_POST['date_derniere_revision']));
+            $stmt->bindParam(':date_derniere_revision', $date_derniere_revision);            
+            $date_prochain_ct = date('Y-m-d', strtotime($_POST['date_prochain_ct']));
+            $stmt->bindParam(':date_prochain_ct', $date_prochain_ct);
             $stmt->bindParam(':statut', $_POST['statut']);
             $stmt->bindParam(':notes', $_POST['notes']);
-            
+            $date_creation = date('Y-m-d');
+            $stmt->bindParam(':date_creation', $date_creation);
             // Exécuter la requête
             $stmt->execute();
             
@@ -109,8 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = true;
             
             // Option de redirection:
-            // header('Location: index.php');
-            // exit;
+            header('Location: view.php');
+            exit;
         } catch (PDOException $e) {
             // Gérer les erreurs de base de données
             $errors['database'] = 'Erreur lors de la création du véhicule: ' . $e->getMessage();
