@@ -258,6 +258,16 @@ include $root_path . '/includes/header.php';
                                         <p class="text-gray-800"><?php echo htmlspecialchars($client['registre_rcc']); ?></p>
                                     </div>
                                 </div>
+                                <div class="flex items-start">
+                                <svg class="w-5 h-5 text-gray-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2M12 22a10 10 0 110-20 10 10 0 010 20z"></path>
+                                </svg>
+
+                                    <div>
+                                        <p class="text-sm text-gray-500">Délai de paiment</p>
+                                        <p class="text-gray-800"><?php echo htmlspecialchars(isset($client['delai_paiement']) && $client['delai_paiement'] !== '' ? $client['delai_paiement'] : '0'); ?></p>
+                                    </div>
+                                </div>
                                 <?php endif; ?>
                             </div>
                             

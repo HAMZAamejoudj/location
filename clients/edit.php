@@ -50,6 +50,9 @@ try {
 
     if ($stmt->rowCount() > 0) {
         $client = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!isset($client['delai_paiement'])) {
+            $client['delai_paiement'] = 0;
+        }
     } else {
         header('Location: index.php');
         exit;
@@ -78,6 +81,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if (empty($_POST['registre_rcc'])) {
             $errors['registre_rcc'] = 'Le registre RCC est requis pour une société';
+        }
+         // Validation du délai de paiement
+         if (isset($_POST['delai_paiement'])) {
+            $delaiPaiement = intval($_POST['delai_paiement']);
+            if ($delaiPaiement < 0 || $delaiPaiement > 15) {
+                $errors['delai_paiement'] = 'Le délai de paiement doit être compris entre 0 et 15 jours';
+            }
         }
     }
 
@@ -116,7 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           adresse = :adresse, 
                           code_postal = :code_postal, 
                           ville = :ville, 
-                          notes = :notes
+                          notes = :notes,
+                          delai_paiement = :delai_paiement
                           WHERE id = :id";
             }
 
@@ -138,6 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $stmt->bindParam(':raison_sociale', $_POST['raison_sociale']);
                 $stmt->bindParam(':registre_rcc', $_POST['registre_rcc']);
+                $delaiPaiement = isset($_POST['delai_paiement']) ? intval($_POST['delai_paiement']) : 0;
+                $stmt->bindParam(':delai_paiement', $delaiPaiement, PDO::PARAM_INT);
             }
 
             // Exécuter la requête
@@ -221,6 +234,17 @@ include $root_path . '/includes/header.php';
                                     <label for="registre_rcc" class="block text-sm font-medium text-gray-700">Registre RCC <span class="text-red-500">*</span></label>
                                     <input type="text" id="registre_rcc" name="registre_rcc" value="<?php echo htmlspecialchars($client['registre_rcc']); ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
                                 </div>
+                                 <!-- Délai de paiement pour les sociétés -->
+                                 <div id="delai-paiement-container">
+                                    <label for="delai_paiement" class="block text-sm font-medium text-gray-700">Délai de paiement (jours)</label>
+                                    <div class="flex items-center">
+                                        <input type="number" id="delai_paiement" name="delai_paiement" min="0" max="15" 
+                                               value="<?php echo htmlspecialchars($client['delai_paiement']); ?>" 
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                        <span class="ml-2 text-sm text-gray-500">jours (0-15)</span>
+                                    </div>
+                                    <p class="mt-1 text-sm text-gray-500">Nombre de jours accordés pour le paiement des factures.</p>
+                                </div>
                             <?php endif; ?>
 
                             <!-- Email -->
@@ -278,15 +302,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const prenomField = document.querySelector('[name="prenom"]');
     const raisonSocialeField = document.querySelector('[name="raison_sociale"]');
     const registreRCCField = document.querySelector('[name="registre_rcc"]');
+    
+    // Validation du délai de paiement
+    const delaiPaiementInput = document.getElementById('delai_paiement');
+    if (delaiPaiementInput) {
+        delaiPaiementInput.addEventListener('input', function() {
+            let value = parseInt(this.value);
+            if (isNaN(value)) {
+                this.value = 0;
+            } else if (value < 0) {
+                this.value = 0;
+            } else if (value > 15) {
+                this.value = 15;
+            }
+        });
+    }
 
     if (typeClient === 'client') {
-        prenomField.parentElement.style.display = 'block';
-        raisonSocialeField.parentElement.style.display = 'none';
-        registreRCCField.parentElement.style.display = 'none';
+        if (prenomField) prenomField.parentElement.style.display = 'block';
+        if (raisonSocialeField) raisonSocialeField.parentElement.style.display = 'none';
+        if (registreRCCField) registreRCCField.parentElement.style.display = 'none';
+        if (delaiPaiementInput) delaiPaiementInput.parentElement.parentElement.style.display = 'none';
     } else if (typeClient === 'societe') {
-        prenomField.parentElement.style.display = 'none';
-        raisonSocialeField.parentElement.style.display = 'block';
-        registreRCCField.parentElement.style.display = 'block';
+        if (prenomField) prenomField.parentElement.style.display = 'none';
+        if (raisonSocialeField) raisonSocialeField.parentElement.style.display = 'block';
+        if (registreRCCField) registreRCCField.parentElement.style.display = 'block';
+        if (delaiPaiementInput) delaiPaiementInput.parentElement.parentElement.style.display = 'block';
     }
 });
 </script>

@@ -63,6 +63,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($_POST['registre_rcc'])) {
             $errors['registre_rcc'] = 'Le registre RCC est requis pour une société';
         }
+        
+        // Validation du délai de paiement
+        if (isset($_POST['delai_paiement'])) {
+            $delaiPaiement = intval($_POST['delai_paiement']);
+            if ($delaiPaiement < 0 || $delaiPaiement > 15) {
+                $errors['delai_paiement'] = 'Le délai de paiement doit être compris entre 0 et 15 jours';
+            }
+        }
     }
 
     if (empty($_POST['email'])) {
@@ -98,8 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $query = "INSERT INTO clients (type_client_id, nom, prenom, email, telephone, adresse, code_postal, ville, date_creation,notes ) 
                           VALUES (:type_client, :nom, :prenom, :email, :telephone, :adresse, :code_postal, :ville, :date_creation, :notes)";
             } else {
-                $query = "INSERT INTO clients (type_client_id, nom, raison_sociale, registre_rcc, email, telephone, adresse, code_postal, ville, date_creation,notes) 
-                          VALUES (:type_client, :nom, :raison_sociale, :registre_rcc, :email, :telephone, :adresse, :code_postal, :ville, :date_creation,:notes)";
+                $query = "INSERT INTO clients (type_client_id, nom, raison_sociale, registre_rcc, email, telephone, adresse, code_postal, ville, date_creation,notes,delai_paiement) 
+                          VALUES (:type_client, :nom, :raison_sociale, :registre_rcc, :email, :telephone, :adresse, :code_postal, :ville, :date_creation,:notes,:delai_paiement)";
             }
     
             $stmt = $db->prepare($query);
@@ -122,6 +130,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $stmt->bindParam(':raison_sociale', $_POST['raison_sociale']);
                 $stmt->bindParam(':registre_rcc', $_POST['registre_rcc']);
+                $delaiPaiement = isset($_POST['delai_paiement']) ? intval($_POST['delai_paiement']) : 0;
+                $stmt->bindParam(':delai_paiement', $delaiPaiement, PDO::PARAM_INT);
             }
     
             $stmt->execute();
@@ -210,6 +220,15 @@ include $root_path . '/includes/header.php';
                                 <label for="registre_rcc" class="block text-sm font-medium text-gray-700">Registre RCC <span class="text-red-500">*</span></label>
                                 <input type="text" id="registre_rcc" name="registre_rcc" value="<?php echo isset($_POST['registre_rcc']) ? htmlspecialchars($_POST['registre_rcc']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
+                             <!-- Délai de paiement (pour société) -->
+                             <div id="delai-paiement-container" class="hidden">
+                                <label for="delai_paiement" class="block text-sm font-medium text-gray-700">Délai de paiement (jours)</label>
+                                <div class="flex items-center">
+                                    <input type="number" id="delai_paiement" name="delai_paiement" min="0" max="15" value="<?php echo isset($_POST['delai_paiement']) ? htmlspecialchars($_POST['delai_paiement']) : '0'; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span class="ml-2 text-sm text-gray-500">jours (0-15)</span>
+                                </div>
+                                <p class="mt-1 text-sm text-gray-500">Nombre de jours accordés pour le paiement des factures.</p>
+                            </div>
 
                             <!-- Email -->
                             <div>
@@ -265,6 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const prenomContainer = document.getElementById('prenom-container');
     const raisonSocialeContainer = document.getElementById('raison-sociale-container');
     const registreRCCContainer = document.getElementById('registre-rcc-container');
+    const delaiPaiementContainer = document.getElementById('delai-paiement-container');
 
     function updateFields() {
         const selectedType = typeClientSelect.value;
@@ -273,16 +293,31 @@ document.addEventListener('DOMContentLoaded', function() {
             prenomContainer.classList.remove('hidden');
             raisonSocialeContainer.classList.add('hidden');
             registreRCCContainer.classList.add('hidden');
+            delaiPaiementContainer.classList.add('hidden');
         } else if (selectedType === 'societe') {
             prenomContainer.classList.add('hidden');
             raisonSocialeContainer.classList.remove('hidden');
             registreRCCContainer.classList.remove('hidden');
+            delaiPaiementContainer.classList.remove('hidden');
         } else {
             prenomContainer.classList.add('hidden');
             raisonSocialeContainer.classList.add('hidden');
             registreRCCContainer.classList.add('hidden');
+            delaiPaiementContainer.classList.add('hidden');
         }
     }
+   // Validation du délai de paiement
+   const delaiPaiementInput = document.getElementById('delai_paiement');
+    delaiPaiementInput.addEventListener('input', function() {
+        let value = parseInt(this.value);
+        if (isNaN(value)) {
+            this.value = 0;
+        } else if (value < 0) {
+            this.value = 0;
+        } else if (value > 15) {
+            this.value = 15;
+        }
+    });
 
     typeClientSelect.addEventListener('change', updateFields);
     updateFields(); // Initialisation au chargement
