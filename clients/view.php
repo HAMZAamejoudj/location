@@ -14,17 +14,32 @@ if (file_exists($root_path . '/includes/functions.php')) {
     require_once $root_path . '/includes/functions.php';
 }
 
+// Connexion à la base de données
+$database = new Database();
+$conn = $database->getConnection(); // Correction ici (utilisation de $conn au lieu de $db)
+
 // Vérifier si l'utilisateur est connecté, sinon rediriger vers la page de connexion
 if (!isset($_SESSION['user_id'])) {
     // Pour le développement, créer un utilisateur factice
     $_SESSION['user_id'] = 1;
 }
 
-// Utilisateur temporaire pour éviter l'erreur
-$currentUser = [
-    'name' => 'Utilisateur Test',
-    'role' => 'Administrateur'
-];
+// Récupérer les informations de l'utilisateur connecté
+$currentUser = [];
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT nom, prenom, role FROM users WHERE id = ?");
+    $stmt->bindParam(1, $user_id, PDO::PARAM_INT);
+    $stmt->execute();
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($user) {
+        $currentUser = [
+            'name' => $user['prenom'] . ' ' . $user['nom'],
+            'role' => $user['role']
+        ];
+    }
+}
 
 // Vérifier si un ID client est fourni
 if (!isset($_GET['id']) || empty($_GET['id'])) {
@@ -35,240 +50,76 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
 
 $client_id = intval($_GET['id']);
 
-// Pour la démonstration, je crée un tableau de clients fictifs
-// Dans une vraie application, vous récupéreriez les données du client depuis la base de données
-$clients = [
-    1 => [
-        'id' => 1,
-        'nom' => 'Dupont',
-        'prenom' => 'Jean',
-        'email' => 'jean.dupont@example.com',
-        'telephone' => '06 12 34 56 78',
-        'adresse' => '123 Rue de Paris',
-        'code_postal' => '75001',
-        'ville' => 'Paris',
-        'date_creation' => '2022-01-15',
-        'nb_vehicules' => 2,
-        'derniere_visite' => '2023-05-20',
-        'vehicules' => [
-            [
-                'id' => 101,
-                'marque' => 'Renault',
-                'modele' => 'Clio',
-                'immatriculation' => 'AB-123-CD',
-                'annee' => 2018,
-                'kilometrage' => 45000,
-                'derniere_intervention' => '2023-05-20'
-            ],
-            [
-                'id' => 102,
-                'marque' => 'Peugeot',
-                'modele' => '308',
-                'immatriculation' => 'EF-456-GH',
-                'annee' => 2020,
-                'kilometrage' => 25000,
-                'derniere_intervention' => '2023-04-10'
-            ]
-        ],
-        'interventions' => [
-            [
-                'id' => 201,
-                'date' => '2023-05-20',
-                'vehicule' => 'Renault Clio',
-                'type' => 'Révision',
-                'montant' => 250.50,
-                'statut' => 'Terminé'
-            ],
-            [
-                'id' => 202,
-                'date' => '2023-04-10',
-                'vehicule' => 'Peugeot 308',
-                'type' => 'Changement de pneus',
-                'montant' => 420.00,
-                'statut' => 'Terminé'
-            ],
-            [
-                'id' => 203,
-                'date' => '2022-11-15',
-                'vehicule' => 'Renault Clio',
-                'type' => 'Réparation freins',
-                'montant' => 350.00,
-                'statut' => 'Terminé'
-            ]
-        ],
-        'factures' => [
-            [
-                'id' => 301,
-                'numero' => 'F-2023-056',
-                'date' => '2023-05-20',
-                'montant' => 250.50,
-                'statut' => 'Payé'
-            ],
-            [
-                'id' => 302,
-                'numero' => 'F-2023-034',
-                'date' => '2023-04-10',
-                'montant' => 420.00,
-                'statut' => 'Payé'
-            ],
-            [
-                'id' => 303,
-                'numero' => 'F-2022-122',
-                'date' => '2022-11-15',
-                'montant' => 350.00,
-                'statut' => 'Payé'
-            ]
-        ]
-    ],
-    2 => [
-        'id' => 2,
-        'nom' => 'Martin',
-        'prenom' => 'Sophie',
-        'email' => 'sophie.martin@example.com',
-        'telephone' => '07 23 45 67 89',
-        'adresse' => '45 Avenue des Champs',
-        'code_postal' => '69002',
-        'ville' => 'Lyon',
-        'date_creation' => '2022-03-22',
-        'nb_vehicules' => 1,
-        'derniere_visite' => '2023-03-15',
-        'vehicules' => [
-            [
-                'id' => 103,
-                'marque' => 'Volkswagen',
-                'modele' => 'Golf',
-                'immatriculation' => 'IJ-789-KL',
-                'annee' => 2019,
-                'kilometrage' => 35000,
-                'derniere_intervention' => '2023-03-15'
-            ]
-        ],
-        'interventions' => [
-            [
-                'id' => 204,
-                'date' => '2023-03-15',
-                'vehicule' => 'Volkswagen Golf',
-                'type' => 'Vidange',
-                'montant' => 180.00,
-                'statut' => 'Terminé'
-            ]
-        ],
-        'factures' => [
-            [
-                'id' => 304,
-                'numero' => 'F-2023-021',
-                'date' => '2023-03-15',
-                'montant' => 180.00,
-                'statut' => 'Payé'
-            ]
-        ]
-    ],
-    3 => [
-        'id' => 3,
-        'nom' => 'Leroy',
-        'prenom' => 'Michel',
-        'email' => 'michel.leroy@example.com',
-        'telephone' => '06 34 56 78 90',
-        'adresse' => '8 Boulevard de la Liberté',
-        'code_postal' => '33000',
-        'ville' => 'Bordeaux',
-        'date_creation' => '2022-05-10',
-        'nb_vehicules' => 3,
-        'derniere_visite' => '2023-06-05',
-        'vehicules' => [
-            [
-                'id' => 104,
-                'marque' => 'Citroen',
-                'modele' => 'C3',
-                'immatriculation' => 'MN-012-OP',
-                'annee' => 2017,
-                'kilometrage' => 65000,
-                'derniere_intervention' => '2023-06-05'
-            ],
-            [
-                'id' => 105,
-                'marque' => 'Audi',
-                'modele' => 'A3',
-                'immatriculation' => 'QR-345-ST',
-                'annee' => 2021,
-                'kilometrage' => 20000,
-                'derniere_intervention' => '2023-02-18'
-            ],
-            [
-                'id' => 106,
-                'marque' => 'BMW',
-                'modele' => 'Serie 1',
-                'immatriculation' => 'UV-678-WX',
-                'annee' => 2019,
-                'kilometrage' => 40000,
-                'derniere_intervention' => '2022-12-10'
-            ]
-        ],
-        'interventions' => [
-            [
-                'id' => 205,
-                'date' => '2023-06-05',
-                'vehicule' => 'Citroen C3',
-                'type' => 'Révision complète',
-                'montant' => 320.00,
-                'statut' => 'Terminé'
-            ],
-            [
-                'id' => 206,
-                'date' => '2023-02-18',
-                'vehicule' => 'Audi A3',
-                'type' => 'Changement batterie',
-                'montant' => 180.00,
-                'statut' => 'Terminé'
-            ],
-            [
-                'id' => 207,
-                'date' => '2022-12-10',
-                'vehicule' => 'BMW Serie 1',
-                'type' => 'Révision',
-                'montant' => 280.00,
-                'statut' => 'Terminé'
-            ]
-        ],
-        'factures' => [
-            [
-                'id' => 305,
-                'numero' => 'F-2023-068',
-                'date' => '2023-06-05',
-                'montant' => 320.00,
-                'statut' => 'Payé'
-            ],
-            [
-                'id' => 306,
-                'numero' => 'F-2023-012',
-                'date' => '2023-02-18',
-                'montant' => 180.00,
-                'statut' => 'Payé'
-            ],
-            [
-                'id' => 307,
-                'numero' => 'F-2022-135',
-                'date' => '2022-12-10',
-                'montant' => 280.00,
-                'statut' => 'Payé'
-            ]
-        ]
-    ]
-];
+// Récupérer les informations du client depuis la base de données
+$stmt = $conn->prepare("SELECT c.*, tc.type as type_client FROM clients c 
+                        LEFT JOIN type_client tc ON c.type_client_id = tc.id 
+                        WHERE c.id = ?");
+$stmt->bindParam(1, $client_id, PDO::PARAM_INT);
+$stmt->execute();
+$client = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Vérifier si le client existe
-if (!isset($clients[$client_id])) {
+if (!$client) {
     // Rediriger vers la liste des clients si le client n'existe pas
     header('Location: index.php');
     exit;
 }
 
-$client = $clients[$client_id];
+// Ajouter la date de création formatée pour l'affichage
+$client['date_creation_formatted'] = date('d/m/Y', strtotime($client['date_creation']));
 
-// Calculer le total des factures
-$total_factures = array_reduce($client['factures'], function($carry, $facture) {
-    return $carry + $facture['montant'];
-}, 0);
+// Récupérer les véhicules du client
+$stmt = $conn->prepare("SELECT * FROM vehicules WHERE client_id = ?");
+$stmt->bindParam(1, $client_id, PDO::PARAM_INT);
+$stmt->execute();
+$vehicules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Récupérer les interventions du client à travers ses véhicules
+$stmt = $conn->prepare("SELECT i.*, v.marque, v.modele, v.immatriculation 
+                        FROM interventions i 
+                        JOIN vehicules v ON i.vehicule_id = v.id 
+                        WHERE v.client_id = ? 
+                        ORDER BY i.date_creation DESC");
+$stmt->bindParam(1, $client_id, PDO::PARAM_INT);
+$stmt->execute();
+$interventions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($interventions as &$row) {
+    // Formater le véhicule pour l'affichage
+    $row['vehicule'] = $row['marque'] . ' ' . $row['modele'] . ' (' . $row['immatriculation'] . ')';
+}
+
+// Récupérer les factures liées aux interventions du client
+$factures = [];
+$total_factures = 0;
+
+if (!empty($interventions)) {
+    $intervention_ids = array_column($interventions, 'id');
+
+    if (!empty($intervention_ids)) {
+        $placeholders = implode(',', array_fill(0, count($intervention_ids), '?'));
+        $sql = "SELECT * FROM factures WHERE intervention_id IN ($placeholders) ORDER BY date_creation DESC";
+        $stmt = $conn->prepare($sql);
+        
+        foreach ($intervention_ids as $key => $id) {
+            $stmt->bindValue($key + 1, $id, PDO::PARAM_INT);
+        }
+
+        $stmt->execute();
+        $factures = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($factures as $facture) {
+            $total_factures += $facture['montant_ttc'];
+        }
+    }
+}
+
+
+
+// Déterminer la date de la dernière visite (dernière intervention)
+$derniere_visite = !empty($interventions) ? $interventions[0]['date_creation'] : $client['date_creation'];
+
+// Calculer le nombre de véhicules
+$nb_vehicules = count($vehicules);
 
 // Inclure l'en-tête
 include $root_path . '/includes/header.php';
@@ -318,14 +169,22 @@ include $root_path . '/includes/header.php';
                                 <?php echo substr($client['prenom'], 0, 1) . substr($client['nom'], 0, 1); ?>
                             </div>
                             <div>
-                                <h2 class="text-2xl font-semibold text-gray-800"><?php echo htmlspecialchars($client['prenom'] . ' ' . $client['nom']); ?></h2>
+                                <h2 class="text-2xl font-semibold text-gray-800">
+                                    <?php 
+                                    if ($client['type_client_id'] == 2) {
+                                        echo htmlspecialchars($client['raison_sociale']);
+                                    } else {
+                                        echo htmlspecialchars($client['prenom'] . ' ' . $client['nom']);
+                                    }
+                                    ?>
+                                </h2>
                                 <p class="text-gray-600">Client depuis le <?php echo date('d/m/Y', strtotime($client['date_creation'])); ?></p>
                                 <div class="flex items-center mt-1">
-                                    <span class="px-2 py-1 text-xs rounded-full <?php echo strtotime($client['derniere_visite']) > strtotime('-3 months') ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?> mr-2">
-                                        <?php echo strtotime($client['derniere_visite']) > strtotime('-3 months') ? 'Client actif' : 'Inactif depuis ' . date('d/m/Y', strtotime($client['derniere_visite'])); ?>
+                                    <span class="px-2 py-1 text-xs rounded-full <?php echo strtotime($derniere_visite) > strtotime('-3 months') ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?> mr-2">
+                                        <?php echo strtotime($derniere_visite) > strtotime('-3 months') ? 'Client actif' : 'Inactif depuis ' . date('d/m/Y', strtotime($derniere_visite)); ?>
                                     </span>
                                     <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                                        <?php echo $client['nb_vehicules']; ?> véhicule<?php echo $client['nb_vehicules'] > 1 ? 's' : ''; ?>
+                                        <?php echo $nb_vehicules; ?> véhicule<?php echo $nb_vehicules > 1 ? 's' : ''; ?>
                                     </span>
                                 </div>
                             </div>
@@ -388,6 +247,18 @@ include $root_path . '/includes/header.php';
                                         <p class="text-gray-800"><?php echo htmlspecialchars($client['code_postal'] . ' ' . $client['ville']); ?></p>
                                     </div>
                                 </div>
+                                
+                                <?php if ($client['type_client_id'] == 2): ?>
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-gray-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Registre RCC</p>
+                                        <p class="text-gray-800"><?php echo htmlspecialchars($client['registre_rcc']); ?></p>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                             </div>
                             
                             <div class="mt-6 pt-6 border-t border-gray-200">
@@ -430,15 +301,15 @@ include $root_path . '/includes/header.php';
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="bg-gray-50 p-3 rounded-lg">
                                         <div class="text-xs text-gray-500">Véhicules</div>
-                                        <div class="text-xl font-semibold text-indigo-600"><?php echo $client['nb_vehicules']; ?></div>
+                                        <div class="text-xl font-semibold text-indigo-600"><?php echo $nb_vehicules; ?></div>
                                     </div>
                                     <div class="bg-gray-50 p-3 rounded-lg">
                                         <div class="text-xs text-gray-500">Interventions</div>
-                                        <div class="text-xl font-semibold text-indigo-600"><?php echo count($client['interventions']); ?></div>
+                                        <div class="text-xl font-semibold text-indigo-600"><?php echo count($interventions); ?></div>
                                     </div>
                                     <div class="bg-gray-50 p-3 rounded-lg">
                                         <div class="text-xs text-gray-500">Factures</div>
-                                        <div class="text-xl font-semibold text-indigo-600"><?php echo count($client['factures']); ?></div>
+                                        <div class="text-xl font-semibold text-indigo-600"><?php echo count($factures); ?></div>
                                     </div>
                                     <div class="bg-gray-50 p-3 rounded-lg">
                                         <div class="text-xs text-gray-500">Total facturé</div>
@@ -457,13 +328,13 @@ include $root_path . '/includes/header.php';
                         <div class="border-b border-gray-200">
                             <nav class="flex -mb-px">
                                 <button id="tab-vehicles" class="tab-button active text-indigo-600 border-indigo-500 py-4 px-6 font-medium border-b-2">
-                                    Véhicules (<?php echo count($client['vehicules']); ?>)
+                                    Véhicules (<?php echo count($vehicules); ?>)
                                 </button>
                                 <button id="tab-interventions" class="tab-button text-gray-500 hover:text-gray-700 py-4 px-6 font-medium border-b-2 border-transparent hover:border-gray-300">
-                                    Interventions (<?php echo count($client['interventions']); ?>)
+                                    Interventions (<?php echo count($interventions); ?>)
                                 </button>
                                 <button id="tab-invoices" class="tab-button text-gray-500 hover:text-gray-700 py-4 px-6 font-medium border-b-2 border-transparent hover:border-gray-300">
-                                    Factures (<?php echo count($client['factures']); ?>)
+                                    Factures (<?php echo count($factures); ?>)
                                 </button>
                             </nav>
                         </div>
@@ -482,7 +353,7 @@ include $root_path . '/includes/header.php';
                                     </a>
                                 </div>
                                 
-                                <?php if (empty($client['vehicules'])): ?>
+                                <?php if (empty($vehicules)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                                         <p class="text-gray-600">Aucun véhicule enregistré pour ce client.</p>
                                     </div>
@@ -501,7 +372,7 @@ include $root_path . '/includes/header.php';
                                                         Année / Kilométrage
                                                     </th>
                                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Dernière intervention
+                                                        Dernière révision
                                                     </th>
                                                     <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Actions
@@ -509,10 +380,10 @@ include $root_path . '/includes/header.php';
                                                 </tr>
                                             </thead>
                                             <tbody class="bg-white divide-y divide-gray-200">
-                                                <?php foreach ($client['vehicules'] as $vehicle): ?>
+                                                <?php foreach ($vehicules as $vehicle): ?>
                                                     <tr class="hover:bg-gray-50">
                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                                            <div class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($vehicle['marque'] . ' ' . $vehicle['modele']); ?></div>
+                                                            <div class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars(ucfirst($vehicle['marque']) . ' ' . $vehicle['modele']); ?></div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
                                                             <div class="text-sm text-gray-900"><?php echo htmlspecialchars($vehicle['immatriculation']); ?></div>
@@ -522,7 +393,15 @@ include $root_path . '/includes/header.php';
                                                             <div class="text-sm text-gray-500"><?php echo number_format($vehicle['kilometrage'], 0, ',', ' '); ?> km</div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-900"><?php echo date('d/m/Y', strtotime($vehicle['derniere_intervention'])); ?></div>
+                                                            <div class="text-sm text-gray-900">
+                                                                <?php 
+                                                                if (!empty($vehicle['date_derniere_revision']) && $vehicle['date_derniere_revision'] != '0000-00-00') {
+                                                                    echo date('d/m/Y', strtotime($vehicle['date_derniere_revision']));
+                                                                } else {
+                                                                    echo 'Non définie';
+                                                                }
+                                                                ?>
+                                                            </div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                             <div class="flex justify-end space-x-2">
@@ -564,7 +443,7 @@ include $root_path . '/includes/header.php';
                                     </a>
                                 </div>
                                 
-                                <?php if (empty($client['interventions'])): ?>
+                                <?php if (empty($interventions)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                                         <p class="text-gray-600">Aucune intervention enregistrée pour ce client.</p>
                                     </div>
@@ -580,10 +459,10 @@ include $root_path . '/includes/header.php';
                                                         Véhicule
                                                     </th>
                                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Type
+                                                        Description
                                                     </th>
                                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Montant
+                                                        Kilométrage
                                                     </th>
                                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Statut
@@ -594,32 +473,38 @@ include $root_path . '/includes/header.php';
                                                 </tr>
                                             </thead>
                                             <tbody class="bg-white divide-y divide-gray-200">
-                                                <?php foreach ($client['interventions'] as $intervention): ?>
+                                                <?php foreach ($interventions as $intervention): ?>
                                                     <tr class="hover:bg-gray-50">
                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-900"><?php echo date('d/m/Y', strtotime($intervention['date'])); ?></div>
+                                                            <div class="text-sm text-gray-900"><?php echo date('d/m/Y', strtotime($intervention['date_creation'])); ?></div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
                                                             <div class="text-sm text-gray-900"><?php echo htmlspecialchars($intervention['vehicule']); ?></div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-900"><?php echo htmlspecialchars($intervention['type']); ?></div>
+                                                            <div class="text-sm text-gray-900"><?php echo htmlspecialchars(substr($intervention['description'], 0, 30) . (strlen($intervention['description']) > 30 ? '...' : '')); ?></div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-900"><?php echo number_format($intervention['montant'], 2, ',', ' '); ?> €</div>
+                                                            <div class="text-sm text-gray-900"><?php echo number_format($intervention['kilometrage'], 0, ',', ' '); ?> km</div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
                                                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
                                                                 <?php 
                                                                 switch ($intervention['statut']) {
-                                                                    case 'Terminé':
+                                                                    case 'Terminée':
                                                                         echo 'bg-green-100 text-green-800';
                                                                         break;
                                                                     case 'En cours':
                                                                         echo 'bg-yellow-100 text-yellow-800';
                                                                         break;
-                                                                    case 'Planifié':
+                                                                    case 'En attente':
                                                                         echo 'bg-blue-100 text-blue-800';
+                                                                        break;
+                                                                    case 'Facturée':
+                                                                        echo 'bg-purple-100 text-purple-800';
+                                                                        break;
+                                                                    case 'Annulée':
+                                                                        echo 'bg-red-100 text-red-800';
                                                                         break;
                                                                     default:
                                                                         echo 'bg-gray-100 text-gray-800';
@@ -663,7 +548,7 @@ include $root_path . '/includes/header.php';
                                     </a>
                                 </div>
                                 
-                                <?php if (empty($client['factures'])): ?>
+                                <?php if (empty($factures)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                                         <p class="text-gray-600">Aucune facture enregistrée pour ce client.</p>
                                     </div>
@@ -690,28 +575,28 @@ include $root_path . '/includes/header.php';
                                                 </tr>
                                             </thead>
                                             <tbody class="bg-white divide-y divide-gray-200">
-                                                <?php foreach ($client['factures'] as $facture): ?>
+                                                <?php foreach ($factures as $facture): ?>
                                                     <tr class="hover:bg-gray-50">
                                                         <td class="px-6 py-4 whitespace-nowrap">
                                                             <div class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($facture['numero']); ?></div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-900"><?php echo date('d/m/Y', strtotime($facture['date'])); ?></div>
+                                                            <div class="text-sm text-gray-900"><?php echo date('d/m/Y', strtotime($facture['date_creation'])); ?></div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-900"><?php echo number_format($facture['montant'], 2, ',', ' '); ?> €</div>
+                                                            <div class="text-sm text-gray-900"><?php echo number_format($facture['montant_ttc'], 2, ',', ' '); ?> €</div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
                                                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
                                                                 <?php 
                                                                 switch ($facture['statut']) {
-                                                                    case 'Payé':
+                                                                    case 'Payée':
                                                                         echo 'bg-green-100 text-green-800';
                                                                         break;
                                                                     case 'En attente':
                                                                         echo 'bg-yellow-100 text-yellow-800';
                                                                         break;
-                                                                    case 'Retard':
+                                                                    case 'Annulée':
                                                                         echo 'bg-red-100 text-red-800';
                                                                         break;
                                                                     default:
@@ -793,3 +678,4 @@ include $root_path . '/includes/header.php';
 </script>
 
 <?php include $root_path . '/includes/footer.php'; ?>
+

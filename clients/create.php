@@ -16,8 +16,7 @@ if (file_exists($root_path . '/includes/functions.php')) {
 
 // Vérifier si l'utilisateur est connecté, sinon rediriger vers la page de connexion
 if (!isset($_SESSION['user_id'])) {
-    // Pour le développement, créer un utilisateur factice
-    $_SESSION['user_id'] = 1;
+    $_SESSION['user_id'] = 1; // Utilisateur factice pour le développement
 }
 
 // Utilisateur temporaire pour éviter l'erreur
@@ -25,82 +24,118 @@ $currentUser = [
     'name' => 'Utilisateur Test',
     'role' => 'Administrateur'
 ];
+
+// Connexion à la base de données
+$database = new Database();
+$db = $database->getConnection();
+
+// Récupérer les types de clients depuis la base de données
+$typesQuery = "SELECT * FROM type_client";
+$typesStmt = $db->prepare($typesQuery);
+$typesStmt->execute();
+$clientTypes = $typesStmt->fetchAll(PDO::FETCH_ASSOC);
+
 // Traitement du formulaire
 $errors = [];
 $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validation des données
+    if (empty($_POST['type_client'])) {
+        $errors['type_client'] = 'Le type de client est requis';
+    }
+
     if (empty($_POST['nom'])) {
         $errors['nom'] = 'Le nom est requis';
     }
-    
-    if (empty($_POST['prenom'])) {
-        $errors['prenom'] = 'Le prénom est requis';
+
+    $clientType = $_POST['type_client'] ?? '';
+
+    // Validation spécifique au type de client
+    if ($clientType == 'client') {
+        if (empty($_POST['prenom'])) {
+            $errors['prenom'] = 'Le prénom est requis pour un client';
+        }
+    } elseif ($clientType == 'societe') {
+        if (empty($_POST['raison_sociale'])) {
+            $errors['raison_sociale'] = 'La raison sociale est requise pour une société';
+        }
+        if (empty($_POST['registre_rcc'])) {
+            $errors['registre_rcc'] = 'Le registre RCC est requis pour une société';
+        }
     }
-    
+
     if (empty($_POST['email'])) {
         $errors['email'] = 'L\'email est requis';
     } elseif (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
         $errors['email'] = 'L\'email n\'est pas valide';
     }
-    
+
     if (empty($_POST['telephone'])) {
         $errors['telephone'] = 'Le téléphone est requis';
     }
-    
-    // Si aucune erreur, créer le client
+
+    // Si aucune erreur, insérer les données en base
     if (empty($errors)) {
-        $database = new Database();
-        $db = $database->getConnection();
-        // Connexion à la base de données (assurez-vous que $conn est défini dans database.php)
         try {
-            // Préparer la requête d'insertion
-            $query = "INSERT INTO clients (nom, prenom, email, telephone, adresse, code_postal, ville, date_creation) 
-                     VALUES (:nom, :prenom, :email, :telephone, :adresse, :code_postal, :ville, :date_creation)";
-            
+            $db->beginTransaction();
+    
+            // Rechercher l'ID du type de client
+            $clientTypeQuery = "SELECT id FROM type_client WHERE type = :type";
+            $clientTypeStmt = $db->prepare($clientTypeQuery);
+            $clientTypeStmt->bindParam(':type', $_POST['type_client']);
+            $clientTypeStmt->execute();
+            $clientTypeResult = $clientTypeStmt->fetch(PDO::FETCH_ASSOC);
+    
+            if ($clientTypeResult) {
+                $clientTypeId = $clientTypeResult['id'];
+            } else {
+                throw new Exception('Type de client invalide');
+            }
+    
+            // Requête d'insertion
+            if ($_POST['type_client'] == 'client') {
+                $query = "INSERT INTO clients (type_client_id, nom, prenom, email, telephone, adresse, code_postal, ville, date_creation,notes ) 
+                          VALUES (:type_client, :nom, :prenom, :email, :telephone, :adresse, :code_postal, :ville, :date_creation, :notes)";
+            } else {
+                $query = "INSERT INTO clients (type_client_id, nom, raison_sociale, registre_rcc, email, telephone, adresse, code_postal, ville, date_creation,notes) 
+                          VALUES (:type_client, :nom, :raison_sociale, :registre_rcc, :email, :telephone, :adresse, :code_postal, :ville, :date_creation,:notes)";
+            }
+    
             $stmt = $db->prepare($query);
-            
-            // Binder les paramètres
+    
+            // Champs communs
+            $stmt->bindParam(':type_client', $clientTypeId);
             $stmt->bindParam(':nom', $_POST['nom']);
-            $stmt->bindParam(':prenom', $_POST['prenom']);
             $stmt->bindParam(':email', $_POST['email']);
             $stmt->bindParam(':telephone', $_POST['telephone']);
             $stmt->bindParam(':adresse', $_POST['adresse']);
             $stmt->bindParam(':code_postal', $_POST['code_postal']);
             $stmt->bindParam(':ville', $_POST['ville']);
-            
             $date_creation = date('Y-m-d');
             $stmt->bindParam(':date_creation', $date_creation);
-            
-            // Exécuter la requête
+            $stmt->bindParam(':notes', $_POST['notes']);
+    
+            // Champs spécifiques
+            if ($_POST['type_client'] == 'client') {
+                $stmt->bindParam(':prenom', $_POST['prenom']);
+            } else {
+                $stmt->bindParam(':raison_sociale', $_POST['raison_sociale']);
+                $stmt->bindParam(':registre_rcc', $_POST['registre_rcc']);
+            }
+    
             $stmt->execute();
-            
-            // Récupérer l'ID du client nouvellement créé
-            $client_id = $db->lastInsertId();
-            
-            $client = [
-                'id' => $client_id,
-                'nom' => $_POST['nom'],
-                'prenom' => $_POST['prenom'],
-                'email' => $_POST['email'],
-                'telephone' => $_POST['telephone'],
-                'adresse' => $_POST['adresse'] ?? '',
-                'code_postal' => $_POST['code_postal'] ?? '',
-                'ville' => $_POST['ville'] ?? '',
-                'date_creation' => $date_creation
-            ];
-            
+            $db->commit();
+    
             $success = true;
-            
-            // Option de redirection:
-            // header('Location: index.php');
-            // exit;
-        } catch (PDOException $e) {
-            // Gérer les erreurs de base de données
-            $errors['database'] = 'Erreur lors de la création du client: ' . $e->getMessage();
+            header('Location: index.php');
+            exit;
+        } catch (Exception $e) {
+            $db->rollBack();
+            $errors['database'] = 'Erreur lors de la création du client : ' . $e->getMessage();
         }
     }
+    
 }
 
 // Inclure l'en-tête
@@ -113,143 +148,145 @@ include $root_path . '/includes/header.php';
 
     <!-- Main Content -->
     <div class="flex-1 overflow-y-auto">
-        <!-- Top header -->
         <div class="bg-white shadow-sm">
             <div class="container mx-auto px-6 py-4 flex justify-between items-center">
                 <h1 class="text-2xl font-semibold text-gray-800">Ajouter un client</h1>
-                <div class="flex items-center space-x-4">
-                    <div class="relative">
-                        <span class="text-gray-700"><?php echo isset($currentUser['name']) ? htmlspecialchars($currentUser['name']) : 'Utilisateur'; ?></span>
-                    </div>
-                </div>
             </div>
         </div>
 
-        <!-- Create Client Form -->
         <div class="container mx-auto px-6 py-8">
-            <!-- Breadcrumb -->
-            <nav class="mb-6" aria-label="Breadcrumb">
-                <ol class="flex text-sm text-gray-600">
-                    <li>
-                        <a href="<?php echo $root_path; ?>/dashboard.php" class="hover:text-indigo-600">Tableau de bord</a>
-                    </li>
-                    <li class="mx-2">/</li>
-                    <li>
-                        <a href="index.php" class="hover:text-indigo-600">Clients</a>
-                    </li>
-                    <li class="mx-2">/</li>
-                    <li class="text-gray-800 font-medium">Ajouter</li>
-                </ol>
-            </nav>
-            
-            <!-- Success Message -->
             <?php if ($success): ?>
-                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded" role="alert">
-                    <p class="font-bold">Succès!</p>
+                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded">
+                    <p class="font-bold">Succès !</p>
                     <p>Le client a été créé avec succès.</p>
-                    <div class="mt-2">
-                        <a href="index.php" class="text-green-600 hover:underline font-medium">Retourner à la liste des clients</a>
-                        ou
-                        <a href="create.php" class="text-green-600 hover:underline font-medium">Ajouter un autre client</a>
-                    </div>
                 </div>
             <?php endif; ?>
-            
-            <!-- Form Card -->
+
+            <?php if (!empty($errors)): ?>
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+                    <p class="font-bold">Erreur !</p>
+                    <ul>
+                        <?php foreach ($errors as $error): ?>
+                            <li><?php echo htmlspecialchars($error); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
             <div class="bg-white rounded-lg shadow-md overflow-hidden">
                 <div class="p-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-6">Informations du client</h2>
-                    
-                    <form action="create.php" method="POST" data-validate="true" id="create-client-form">
+                    <form action="create.php" method="POST" id="create-client-form">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Type de client -->
+                            <div class="md:col-span-2">
+                                <label for="type_client" class="block text-sm font-medium text-gray-700">Type de client <span class="text-red-500">*</span></label>
+                                <select id="type_client" name="type_client" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                    <option value="">Sélectionnez un type</option>
+                                    <option value="client" <?php echo (isset($_POST['type_client']) && $_POST['type_client'] == 'client') ? 'selected' : ''; ?>>Client</option>
+                                    <option value="societe" <?php echo (isset($_POST['type_client']) && $_POST['type_client'] == 'societe') ? 'selected' : ''; ?>>Société</option>
+                                </select>
+                            </div>
+
                             <!-- Nom -->
                             <div>
-                                <label for="nom" class="block text-sm font-medium text-gray-700 mb-1">Nom <span class="text-red-500">*</span></label>
-                                <input type="text" id="nom" name="nom" value="<?php echo isset($_POST['nom']) ? htmlspecialchars($_POST['nom']) : ''; ?>" class="w-full px-4 py-2 border <?php echo isset($errors['nom']) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
-                                <?php if (isset($errors['nom'])): ?>
-                                    <p class="text-red-500 text-xs mt-1"><?php echo $errors['nom']; ?></p>
-                                <?php endif; ?>
+                                <label for="nom" class="block text-sm font-medium text-gray-700">Nom <span class="text-red-500">*</span></label>
+                                <input type="text" id="nom" name="nom" value="<?php echo isset($_POST['nom']) ? htmlspecialchars($_POST['nom']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
                             </div>
-                            
-                            <!-- Prénom -->
-                            <div>
-                                <label for="prenom" class="block text-sm font-medium text-gray-700 mb-1">Prénom <span class="text-red-500">*</span></label>
-                                <input type="text" id="prenom" name="prenom" value="<?php echo isset($_POST['prenom']) ? htmlspecialchars($_POST['prenom']) : ''; ?>" class="w-full px-4 py-2 border <?php echo isset($errors['prenom']) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
-                                <?php if (isset($errors['prenom'])): ?>
-                                    <p class="text-red-500 text-xs mt-1"><?php echo $errors['prenom']; ?></p>
-                                <?php endif; ?>
+
+                            <!-- Prénom (pour client) -->
+                            <div id="prenom-container">
+                                <label for="prenom" class="block text-sm font-medium text-gray-700">Prénom <span class="text-red-500">*</span></label>
+                                <input type="text" id="prenom" name="prenom" value="<?php echo isset($_POST['prenom']) ? htmlspecialchars($_POST['prenom']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
-                            
+
+                            <!-- Raison Sociale (pour société) -->
+                            <div id="raison-sociale-container" class="hidden">
+                                <label for="raison_sociale" class="block text-sm font-medium text-gray-700">Raison Sociale <span class="text-red-500">*</span></label>
+                                <input type="text" id="raison_sociale" name="raison_sociale" value="<?php echo isset($_POST['raison_sociale']) ? htmlspecialchars($_POST['raison_sociale']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+
+                            <!-- Registre RCC (pour société) -->
+                            <div id="registre-rcc-container" class="hidden">
+                                <label for="registre_rcc" class="block text-sm font-medium text-gray-700">Registre RCC <span class="text-red-500">*</span></label>
+                                <input type="text" id="registre_rcc" name="registre_rcc" value="<?php echo isset($_POST['registre_rcc']) ? htmlspecialchars($_POST['registre_rcc']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+
                             <!-- Email -->
                             <div>
-                                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-                                <input type="email" id="email" name="email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>" class="w-full px-4 py-2 border <?php echo isset($errors['email']) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
-                                <?php if (isset($errors['email'])): ?>
-                                    <p class="text-red-500 text-xs mt-1"><?php echo $errors['email']; ?></p>
-                                <?php endif; ?>
+                                <label for="email" class="block text-sm font-medium text-gray-700">Email <span class="text-red-500">*</span></label>
+                                <input type="email" id="email" name="email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
                             </div>
-                            
+
                             <!-- Téléphone -->
                             <div>
-                                <label for="telephone" class="block text-sm font-medium text-gray-700 mb-1">Téléphone <span class="text-red-500">*</span></label>
-                                <input type="text" id="telephone" name="telephone" value="<?php echo isset($_POST['telephone']) ? htmlspecialchars($_POST['telephone']) : ''; ?>" class="w-full px-4 py-2 border <?php echo isset($errors['telephone']) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
-                                <?php if (isset($errors['telephone'])): ?>
-                                    <p class="text-red-500 text-xs mt-1"><?php echo $errors['telephone']; ?></p>
-                                <?php endif; ?>
+                                <label for="telephone" class="block text-sm font-medium text-gray-700">Téléphone <span class="text-red-500">*</span></label>
+                                <input type="text" id="telephone" name="telephone" value="<?php echo isset($_POST['telephone']) ? htmlspecialchars($_POST['telephone']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
                             </div>
-                            
+
                             <!-- Adresse -->
                             <div class="md:col-span-2">
-                                <label for="adresse" class="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                                <label for="adresse" class="block text-sm font-medium text-gray-700">Adresse</label>
                                 <input type="text" id="adresse" name="adresse" value="<?php echo isset($_POST['adresse']) ? htmlspecialchars($_POST['adresse']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
-                            
+
                             <!-- Code Postal -->
                             <div>
-                                <label for="code_postal" class="block text-sm font-medium text-gray-700 mb-1">Code Postal</label>
+                                <label for="code_postal" class="block text-sm font-medium text-gray-700">Code Postal</label>
                                 <input type="text" id="code_postal" name="code_postal" value="<?php echo isset($_POST['code_postal']) ? htmlspecialchars($_POST['code_postal']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
-                            
+
                             <!-- Ville -->
                             <div>
-                                <label for="ville" class="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                                <label for="ville" class="block text-sm font-medium text-gray-700">Ville</label>
                                 <input type="text" id="ville" name="ville" value="<?php echo isset($_POST['ville']) ? htmlspecialchars($_POST['ville']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
+                            <div class="md:col-span-2">
+                                <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                                <input type="text" id="notes" name="notes" value="<?php echo isset($_POST['notes']) ? htmlspecialchars($_POST['notes']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                         </div>
                         </div>
-                        
-                        <!-- Form Actions -->
+
+                        <!-- Boutons -->
                         <div class="mt-8 flex justify-end space-x-3">
-                            <a href="index.php" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
-                                Annuler
-                            </a>
-                            <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                                Créer le client
-                            </button>
+                            <a href="index.php" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Annuler</a>
+                            <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Créer</button>
                         </div>
                     </form>
-                </div>
-            </div>
-            
-            <!-- Tips Card -->
-            <div class="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-100">
-                <div class="flex items-start">
-                    <div class="mr-3">
-                        <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-medium text-blue-800">Conseils pour l'ajout de clients</h3>
-                        <ul class="mt-2 text-sm text-blue-700 list-disc list-inside">
-                            <li>Vérifiez que les informations de contact sont correctes</li>
-                            <li>L'adresse email sera utilisée pour les communications automatiques</li>
-                            <li>Après avoir créé un client, vous pourrez lui associer un ou plusieurs véhicules</li>
-                        </ul>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Script pour champs dynamiques -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeClientSelect = document.getElementById('type_client');
+    const prenomContainer = document.getElementById('prenom-container');
+    const raisonSocialeContainer = document.getElementById('raison-sociale-container');
+    const registreRCCContainer = document.getElementById('registre-rcc-container');
+
+    function updateFields() {
+        const selectedType = typeClientSelect.value;
+
+        if (selectedType === 'client') {
+            prenomContainer.classList.remove('hidden');
+            raisonSocialeContainer.classList.add('hidden');
+            registreRCCContainer.classList.add('hidden');
+        } else if (selectedType === 'societe') {
+            prenomContainer.classList.add('hidden');
+            raisonSocialeContainer.classList.remove('hidden');
+            registreRCCContainer.classList.remove('hidden');
+        } else {
+            prenomContainer.classList.add('hidden');
+            raisonSocialeContainer.classList.add('hidden');
+            registreRCCContainer.classList.add('hidden');
+        }
+    }
+
+    typeClientSelect.addEventListener('change', updateFields);
+    updateFields(); // Initialisation au chargement
+});
+</script>
 
 <?php include $root_path . '/includes/footer.php'; ?>
