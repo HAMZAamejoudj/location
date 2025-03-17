@@ -97,7 +97,7 @@ include $root_path . '/includes/header.php';
                                     $database = new Database();
                                     $db = $database->getConnection();
                                     
-                                    $query = "SELECT COUNT(*) as total FROM articles";
+                                    $query = "SELECT COUNT(*) as total FROM article";
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
