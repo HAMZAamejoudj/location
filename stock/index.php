@@ -65,7 +65,7 @@ include $root_path . '/includes/header.php';
                     </form>
                 </div>
                 <div class="flex space-x-3">
-                    <a href="add_article.php" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center">
+                    <a href="create.php" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                         </svg>
@@ -120,7 +120,7 @@ include $root_path . '/includes/header.php';
                             <h2 class="text-gray-600 text-sm font-medium">Stock Faible</h2>
                             <p class="text-2xl font-semibold text-gray-800">
                                 <?php
-                                    $query = "SELECT COUNT(*) as total FROM articles WHERE quantite_stock <= seuil_alerte";
+                                    $query = "SELECT COUNT(*) as total FROM article WHERE quantite_stock <= seuil_alerte";
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -143,7 +143,7 @@ include $root_path . '/includes/header.php';
                             <h2 class="text-gray-600 text-sm font-medium">Valeur Stock</h2>
                             <p class="text-2xl font-semibold text-gray-800">
                                 <?php
-                                    $query = "SELECT SUM(prix_achat * quantite_stock) as total FROM articles";
+                                    $query = "SELECT SUM(prix_achat * quantite_stock) as total FROM article";
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -166,7 +166,7 @@ include $root_path . '/includes/header.php';
                             <h2 class="text-gray-600 text-sm font-medium">Ajoutés (30j)</h2>
                             <p class="text-2xl font-semibold text-gray-800">
                                 <?php
-                                    $query = "SELECT COUNT(*) as total FROM articles WHERE date_creation >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)";
+                                    $query = "SELECT COUNT(*) as total FROM article WHERE date_creation >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)";
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -191,12 +191,12 @@ include $root_path . '/includes/header.php';
                         <select name="categorie" id="categorie" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">Toutes les catégories</option>
                             <?php
-                                $query = "SELECT DISTINCT categorie FROM articles ORDER BY categorie";
+                                $query = "SELECT id, nom as nom_categorie FROM categorie ORDER BY nom";
                                 $stmt = $db->prepare($query);
                                 $stmt->execute();
                                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                                    $selected = (isset($_GET['categorie']) && $_GET['categorie'] == $row['categorie']) ? 'selected' : '';
-                                    echo '<option value="' . htmlspecialchars($row['categorie']) . '" ' . $selected . '>' . htmlspecialchars($row['categorie']) . '</option>';
+                                    $selected = (isset($_GET['categorie']) && $_GET['categorie'] == $row['id']) ? 'selected' : '';
+                                    echo '<option value="' . htmlspecialchars($row['id']) . '" ' . $selected . '>' . htmlspecialchars($row['nom_categorie']) . '</option>';
                                 }
                             ?>
                         </select>
@@ -231,25 +231,25 @@ include $root_path . '/includes/header.php';
                 
                 if (isset($_GET['search']) && !empty($_GET['search'])) {
                     $search = '%' . $_GET['search'] . '%';
-                    $where_conditions[] = "(reference LIKE :search OR designation LIKE :search)";
+                    $where_conditions[] = "(a.reference LIKE :search OR a.designation LIKE :search)";
                     $params[':search'] = $search;
                 }
                 
                 if (isset($_GET['categorie']) && !empty($_GET['categorie'])) {
-                    $where_conditions[] = "categorie = :categorie";
+                    $where_conditions[] = "a.categorie = :categorie";
                     $params[':categorie'] = $_GET['categorie'];
                 }
                 
                 if (isset($_GET['stock']) && !empty($_GET['stock'])) {
                     switch($_GET['stock']) {
                         case 'low':
-                            $where_conditions[] = "quantite_stock <= seuil_alerte";
+                            $where_conditions[] = "a.quantite_stock <= a.seuil_alerte";
                             break;
                         case 'normal':
-                            $where_conditions[] = "quantite_stock > seuil_alerte AND quantite_stock <= seuil_alerte * 3";
+                            $where_conditions[] = "a.quantite_stock > a.seuil_alerte AND a.quantite_stock <= a.seuil_alerte * 3";
                             break;
                         case 'high':
-                            $where_conditions[] = "quantite_stock > seuil_alerte * 3";
+                            $where_conditions[] = "a.quantite_stock > a.seuil_alerte * 3";
                             break;
                     }
                 }
@@ -257,7 +257,7 @@ include $root_path . '/includes/header.php';
                 $where_clause = !empty($where_conditions) ? "WHERE " . implode(" AND ", $where_conditions) : "";
                 
                 // Récupérer le nombre total d'articles
-                $count_query = "SELECT COUNT(*) as total FROM articles $where_clause";
+                $count_query = "SELECT COUNT(*) as total FROM article a LEFT JOIN categorie c ON a.categorie = c.id $where_clause";
                 $count_stmt = $db->prepare($count_query);
                 foreach ($params as $key => $value) {
                     $count_stmt->bindValue($key, $value);
@@ -268,10 +268,13 @@ include $root_path . '/includes/header.php';
                 $total_pages = ceil($total_articles / $articles_per_page);
                 
                 // Récupérer les articles pour la page courante
-                $query = "SELECT id, reference, designation, categorie, quantite_stock, seuil_alerte, prix_achat, prix_vente, tva, emplacement, date_creation, derniere_mise_a_jour 
-                          FROM articles 
+                $query = "SELECT a.id, a.reference, a.designation, a.categorie, c.nom as nom_cat, 
+                          a.quantite_stock, a.seuil_alerte, a.prix_achat, a.prix_vente_ht, 
+                          a.emplacement, a.date_creation, a.derniere_mise_a_jour 
+                          FROM article a 
+                          LEFT JOIN categorie c ON a.categorie = c.id 
                           $where_clause
-                          ORDER BY reference ASC
+                          ORDER BY a.reference DESC
                           LIMIT :limit OFFSET :offset";
                 $stmt = $db->prepare($query);
                 foreach ($params as $key => $value) {
@@ -306,9 +309,9 @@ include $root_path . '/includes/header.php';
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Prix Vente
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <!-- <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     TVA
-                                </th>
+                                </th> -->
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Emplacement
                                 </th>
@@ -320,7 +323,7 @@ include $root_path . '/includes/header.php';
                         <tbody class="bg-white divide-y divide-gray-200">
                             <?php if (empty($articles)): ?>
                                 <tr>
-                                    <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">
                                         Aucun article trouvé
                                     </td>
                                 </tr>
@@ -339,7 +342,7 @@ include $root_path . '/includes/header.php';
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm text-gray-900">
-                                                <?php echo htmlspecialchars($article['categorie']); ?>
+                                                <?php echo htmlspecialchars($article['nom_cat'] ?? 'Non catégorisé'); ?>
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
@@ -359,11 +362,9 @@ include $root_path . '/includes/header.php';
                                             <?php echo number_format($article['prix_achat'], 2, ',', ' '); ?> €
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <?php echo number_format($article['prix_vente'], 2, ',', ' '); ?> €
+                                            <?php echo number_format($article['prix_vente_ht'], 2, ',', ' '); ?> €
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <?php echo number_format($article['tva'], 2, ',', ' '); ?> %
-                                        </td>
+                                        
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             <?php echo htmlspecialchars($article['emplacement']); ?>
                                         </td>
@@ -375,7 +376,7 @@ include $root_path . '/includes/header.php';
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                                     </svg>
                                                 </a>
-                                                <a href="edit_article.php?id=<?php echo $article['id']; ?>" class="text-blue-600 hover:text-blue-900" title="Modifier">
+                                                <a href="edit.php?id=<?php echo $article['id']; ?>" class="text-blue-600 hover:text-blue-900" title="Modifier">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                     </svg>
@@ -626,4 +627,3 @@ include $root_path . '/includes/header.php';
         </div>
         
         <?php include $root_path . '/includes/footer.php'; ?>
-        
