@@ -2,6 +2,13 @@
 // Démarrer la session
 session_start();
 
+// Vérifier si l'utilisateur est connecté
+if (!isset($_SESSION['user_id'])) {
+    $_SESSION['error'] = "Vous devez être connecté pour accéder à cette page.";
+    header("Location: ../login.php");
+    exit;
+}
+
 // Chemin racine de l'application
 $root_path = dirname(__DIR__);
 
@@ -10,159 +17,115 @@ if (file_exists($root_path . '/config/database.php')) {
     require_once $root_path . '/config/database.php';
 }
 
-if (file_exists($root_path . '/includes/functions.php')) {
-    require_once $root_path . '/includes/functions.php';
-}
-
-// Vérifier si l'utilisateur est connecté, sinon rediriger vers la page de connexion
-if (!isset($_SESSION['user_id'])) {
-    // Pour le développement, créer un utilisateur factice
-    $_SESSION['user_id'] = 1;
-}
-
-// Utilisateur temporaire pour éviter l'erreur
-$currentUser = [
-    'name' => 'Utilisateur Test',
-    'role' => 'Administrateur'
-];
-
-// Récupérer la liste des véhicules et techniciens pour le formulaire
-$database = new Database();
-$db = $database->getConnection();
-
 // Traitement du formulaire
-$errors = [];
-$success = false;
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Récupération et nettoyage des données
+    // Récupérer les données du formulaire
     $vehicule_id = isset($_POST['vehicule_id']) ? filter_var($_POST['vehicule_id'], FILTER_VALIDATE_INT) : null;
-    $technicien_id = isset($_POST['technicien_id']) && !empty($_POST['technicien_id']) ? 
-                    filter_var($_POST['technicien_id'], FILTER_VALIDATE_INT) : null;
-    $date_creation = date('Y-m-d H:i:s'); // Date et heure actuelles
-    $date_prevue = !empty($_POST['date_prevue']) ? 
-                  date('Y-m-d', strtotime($_POST['date_prevue'])) : null;
-    $date_debut = !empty($_POST['date_debut']) ? 
-                 date('Y-m-d', strtotime($_POST['date_debut'])) : null;
-    $date_fin = !empty($_POST['date_fin']) ? 
-               date('Y-m-d', strtotime($_POST['date_fin'])) : null;
+    $technicien_id = isset($_POST['technicien_id']) && !empty($_POST['technicien_id']) ? filter_var($_POST['technicien_id'], FILTER_VALIDATE_INT) : null;
+    $date_prevue = isset($_POST['date_prevue']) && !empty($_POST['date_prevue']) ? $_POST['date_prevue'] : null;
+    $date_debut = isset($_POST['date_debut']) && !empty($_POST['date_debut']) ? $_POST['date_debut'] : null;
+    $date_fin = isset($_POST['date_fin']) && !empty($_POST['date_fin']) ? $_POST['date_fin'] : null;
+    $kilometrage = isset($_POST['kilometrage']) && !empty($_POST['kilometrage']) ? filter_var($_POST['kilometrage'], FILTER_VALIDATE_INT) : null;
     $description = isset($_POST['description']) ? trim($_POST['description']) : '';
     $diagnostique = isset($_POST['diagnostique']) ? trim($_POST['diagnostique']) : null;
-    $kilometrage = isset($_POST['kilometrage']) && !empty($_POST['kilometrage']) ? 
-                  filter_var($_POST['kilometrage'], FILTER_VALIDATE_INT) : null;
     $commentaire = isset($_POST['commentaire']) ? trim($_POST['commentaire']) : null;
-    $statut = isset($_POST['statut']) && in_array($_POST['statut'], ['En attente', 'En cours', 'Terminée', 'Facturée', 'Annulée']) ? 
-             $_POST['statut'] : 'En attente';
+    $statut = isset($_POST['statut']) ? trim($_POST['statut']) : 'En attente';
 
     // Validation des données
+    $errors = [];
     if (!$vehicule_id) {
-        $errors['vehicule_id'] = 'Le véhicule est requis';
+        $errors[] = "Veuillez sélectionner un véhicule.";
     }
-
     if (empty($description)) {
-        $errors['description'] = 'La description est requise';
+        $errors[] = "La description est obligatoire.";
     }
 
-    // Vérifier la cohérence des dates
-    if ($date_debut && $date_fin && strtotime($date_debut) > strtotime($date_fin)) {
-        $errors['date'] = 'La date de début ne peut pas être postérieure à la date de fin';
-    }
-
-    // Si aucune erreur, créer l'intervention
+    // Si pas d'erreurs, procéder à l'insertion
     if (empty($errors)) {
         try {
-            // Préparer la requête d'insertion avec tous les champs possibles
-            $query = "INSERT INTO interventions (
-                        vehicule_id, technicien_id, date_creation, date_prevue, date_debut, date_fin,
-                        description, diagnostique, kilometrage, commentaire, statut
-                      ) VALUES (
-                        :vehicule_id, :technicien_id, :date_creation, :date_prevue, :date_debut, :date_fin,
-                        :description, :diagnostique, :kilometrage, :commentaire, :statut
-                      )";
-            
-            $stmt = $db->prepare($query);
+            $database = new Database();
+            $db = $database->getConnection();
 
-            // Binder les paramètres
+            // Préparer la requête d'insertion
+            $query = "INSERT INTO interventions (
+                        vehicule_id, technicien_id, date_creation, date_prevue, date_debut, date_fin, 
+                        kilometrage, description, diagnostique, commentaire, statut
+                      ) VALUES (
+                        :vehicule_id, :technicien_id, NOW(), :date_prevue, :date_debut, :date_fin, 
+                        :kilometrage, :description, :diagnostique, :commentaire, :statut
+                      )";
+
+            $stmt = $db->prepare($query);
             $stmt->bindParam(':vehicule_id', $vehicule_id, PDO::PARAM_INT);
             $stmt->bindParam(':technicien_id', $technicien_id, PDO::PARAM_INT);
-            $stmt->bindParam(':date_creation', $date_creation);
             $stmt->bindParam(':date_prevue', $date_prevue);
             $stmt->bindParam(':date_debut', $date_debut);
             $stmt->bindParam(':date_fin', $date_fin);
+            $stmt->bindParam(':kilometrage', $kilometrage, PDO::PARAM_INT);
             $stmt->bindParam(':description', $description);
             $stmt->bindParam(':diagnostique', $diagnostique);
-            $stmt->bindParam(':kilometrage', $kilometrage, PDO::PARAM_INT);
             $stmt->bindParam(':commentaire', $commentaire);
             $stmt->bindParam(':statut', $statut);
 
-            // Exécuter la requête
-            if ($stmt->execute()) {
-                // Récupérer l'ID de l'intervention nouvellement créée
+            $success = $stmt->execute();
+
+            if ($success) {
                 $intervention_id = $db->lastInsertId();
-                $success = true;
                 
-                // Stocker un message de succès dans la session
+                // Traitement des articles sélectionnés
+                if (isset($_POST['selected_articles']) && !empty($_POST['selected_articles'])) {
+                    try {
+                        $articles = json_decode($_POST['selected_articles'], true);
+                        
+                        if (is_array($articles) && !empty($articles)) {
+                            // Préparer la requête d'insertion pour les articles
+                            $query_articles = "INSERT INTO interventions_articles 
+                                            (intervention_id, article_id, quantite, prix_unitaire, remise) 
+                                            VALUES 
+                                            (:intervention_id, :article_id, :quantite, :prix_unitaire, :remise)";
+                            
+                            $stmt_articles = $db->prepare($query_articles);
+                            
+                            foreach ($articles as $article) {
+                                $stmt_articles->bindParam(':intervention_id', $intervention_id, PDO::PARAM_INT);
+                                $stmt_articles->bindParam(':article_id', $article['id'], PDO::PARAM_INT);
+                                $stmt_articles->bindParam(':quantite', $article['quantite'], PDO::PARAM_INT);
+                                $stmt_articles->bindParam(':prix_unitaire', $article['prix_vente_ht'], PDO::PARAM_STR);
+                                $stmt_articles->bindParam(':remise', $article['remise'], PDO::PARAM_STR);
+                                $stmt_articles->execute();
+                            }
+                        }
+                    } catch (PDOException $e) {
+                        error_log('Erreur lors de l\'ajout des articles à l\'intervention: ' . $e->getMessage());
+                        // Ne pas annuler l'intervention même si l'ajout des articles échoue
+                        $_SESSION['warning'] = 'L\'intervention a été créée mais certains articles n\'ont pas pu être ajoutés.';
+                    }
+                }
+                
                 $_SESSION['success'] = "L'intervention a été créée avec succès.";
-                
-                // Redirection vers la page d'index
-                header('Location: index.php');
+                header("Location: index.php");
                 exit;
             } else {
-                $errors['database'] = 'Erreur lors de la création de l\'intervention.';
+                $_SESSION['error'] = "Une erreur est survenue lors de la création de l'intervention.";
+                header("Location: index.php");
+                exit;
             }
         } catch (PDOException $e) {
-            // Gérer les erreurs de base de données
-            $errors['database'] = 'Erreur lors de la création de l\'intervention: ' . $e->getMessage();
-            
-            // Log l'erreur pour le débogage
-            error_log('Erreur PDO dans la création d\'intervention: ' . $e->getMessage());
+            error_log('Erreur lors de la création de l\'intervention: ' . $e->getMessage());
+            $_SESSION['error'] = "Une erreur de base de données est survenue.";
+            header("Location: index.php");
+            exit;
         }
-    }
-    
-    // Si des erreurs se sont produites, les stocker dans la session pour les afficher après redirection
-    if (!empty($errors)) {
-        $_SESSION['errors'] = $errors;
-        $_SESSION['form_data'] = $_POST; // Sauvegarder les données du formulaire pour les réafficher
-        header('Location: ' . $_SERVER['PHP_SELF']);
+    } else {
+        // Stocker les erreurs dans la session
+        $_SESSION['error'] = implode("<br>", $errors);
+        $_SESSION['form_data'] = $_POST; // Stocker les données du formulaire pour les réafficher
+        header("Location: index.php");
         exit;
     }
+} else {
+    // Si accès direct à ce fichier sans soumission de formulaire
+    header("Location: index.php");
+    exit;
 }
-
-// Récupérer les véhicules pour le formulaire
-$vehicules = [];
-try {
-    $query = "SELECT v.id, v.marque, v.modele, v.immatriculation, 
-                     CONCAT(c.nom, ' ', c.prenom) AS client_nom
-              FROM vehicules v
-              INNER JOIN clients c ON v.client_id = c.id
-              ORDER BY v.marque, v.modele";
-    $stmt = $db->prepare($query);
-    $stmt->execute();
-    $vehicules = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log('Erreur lors de la récupération des véhicules: ' . $e->getMessage());
-}
-
-// Récupérer les techniciens pour le formulaire
-$techniciens = [];
-try {
-    $query = "SELECT t.id, CONCAT(t.prenom, ' ', t.nom) AS nom_complet, t.specialite 
-              FROM technicien t 
-              ORDER BY t.nom ASC";
-    $stmt = $db->prepare($query);
-    $stmt->execute();
-    $techniciens = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log('Erreur lors de la récupération des techniciens: ' . $e->getMessage());
-}
-
-// Récupérer les messages d'erreur ou de succès de la session
-$sessionErrors = isset($_SESSION['errors']) ? $_SESSION['errors'] : [];
-$formData = isset($_SESSION['form_data']) ? $_SESSION['form_data'] : [];
-$sessionSuccess = isset($_SESSION['success']) ? $_SESSION['success'] : false;
-
-// Nettoyer la session
-unset($_SESSION['errors'], $_SESSION['form_data'], $_SESSION['success']);
-
-// Inclure l'en-tête et le contenu de la page...
 ?>

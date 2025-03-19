@@ -33,6 +33,22 @@ include '../includes/header.php';
 $database = new Database();
 $db = $database->getConnection();
 
+// Récupération des catégories pour le formulaire d'articles
+function getCategories($db) {
+    try {
+        $query = "SELECT id, nom FROM categorie ORDER BY nom ASC";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Erreur lors de la récupération des catégories: ' . $e->getMessage());
+        return [];
+    }
+}
+
+$categories = getCategories($db);
+
 // Récupération des techniciens
 function getTechniciens($db) {
     try {
@@ -424,7 +440,7 @@ try {
                             sur <span class="font-medium"><?= $totalInterventions ?></span> résultats
                         </div>
                         <div class="flex space-x-1">
-                            <?php 
+                        <?php 
                             // Construire l'URL de base pour la pagination en conservant les filtres
                             $url_params = [];
                             if (!empty($search)) $url_params[] = "search=" . urlencode($search);
@@ -474,9 +490,8 @@ try {
 </div>
 
 <!-- Add Intervention Modal -->
-<!-- Add Intervention Modal -->
 <div id="addInterventionModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center p-6 border-b">
             <h3 class="text-lg font-semibold text-gray-800">Ajouter une intervention</h3>
             <button onclick="closeModal('addInterventionModal')" class="text-gray-400 hover:text-gray-500">
@@ -549,6 +564,77 @@ try {
                     </select>
                 </div>
             </div>
+            
+            <!-- Section des articles -->
+            <div class="mt-8 border-t border-gray-200 pt-6">
+                <h4 class="text-lg font-medium text-gray-900 mb-4">Articles à utiliser</h4>
+                
+                <!-- Sélection de catégorie -->
+                <div class="mb-4">
+                    <label for="categorie_filter" class="block text-sm font-medium text-gray-700 mb-1">Filtrer par catégorie</label>
+                    <select id="categorie_filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
+                        <option value="">Toutes les catégories</option>
+                        <?php foreach ($categories as $categorie): ?>
+                            <option value="<?php echo $categorie['id']; ?>"><?php echo htmlspecialchars($categorie['nom']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <!-- Recherche d'articles -->
+                <div class="mb-4">
+                    <label for="article_search" class="block text-sm font-medium text-gray-700 mb-1">Rechercher un article</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <input type="text" id="article_search" class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Rechercher par référence, désignation...">
+                    </div>
+                </div>
+                
+                <!-- Liste des articles -->
+                <div class="border border-gray-300 rounded-md overflow-hidden">
+                    <div class="max-h-64 overflow-y-auto" id="articles_container">
+                        <div class="p-4 text-center text-gray-500">
+                            Sélectionnez une catégorie ou recherchez un article
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Articles sélectionnés -->
+                <div class="mt-6">
+                    <h5 class="text-md font-medium text-gray-900 mb-2">Articles sélectionnés</h5>
+                    <div class="border border-gray-300 rounded-md overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200" id="selected_articles_table">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référence</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Désignation</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix unitaire</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remise</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="selected_articles_body">
+                                <tr>
+                                    <td colspan="7" class="px-4 py-3 text-center text-gray-500">Aucun article sélectionné</td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-gray-50">
+                                <tr>
+                                    <td colspan="5" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900" id="total_ht">0.00 €</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
             <div class="mt-6 flex justify-end space-x-3">
                 <button type="button" onclick="closeModal('addInterventionModal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                     Annuler
@@ -558,19 +644,19 @@ try {
                 </button>
             </div>
             <p class="text-xs text-gray-500 mt-4">Les champs marqués d'un <span class="text-red-500">*</span> sont obligatoires.</p>
+            
+            <!-- Champ caché pour stocker les articles sélectionnés -->
+            <input type="hidden" id="selected_articles_json" name="selected_articles" value="[]">
         </form>
     </div>
 </div>
 
-
-<!-- View Intervention Modal -->
 <!-- View Intervention Modal -->
 <div id="viewInterventionModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-white z-10 flex justify-between items-center p-5 border-b border-gray-200">
             <div class="flex items-center">
                 <h3 class="text-xl font-semibold text-gray-800">Détails de l'intervention</h3>
-             <!--     <span id="view_id_badge" class="ml-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">ID: <span id="view_id_number"></span></span>-->
             </div>
             <button onclick="closeModal('viewInterventionModal')" class="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-200 rounded-full p-1">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -691,6 +777,41 @@ try {
                     </div>
                 </div>
             </div>
+            
+            <!-- Articles utilisés -->
+            <div class="mb-6">
+                <h4 class="font-medium text-gray-700 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                    Articles utilisés
+                </h4>
+                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200" id="view_articles_table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référence</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Désignation</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix unitaire</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remise</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="view_articles_body">
+                            <tr>
+                                <td colspan="6" class="px-4 py-3 text-center text-gray-500">Aucun article utilisé</td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="bg-gray-50">
+                            <tr>
+                                <td colspan="5" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
+                                <td class="px-4 py-3 font-medium text-gray-900" id="view_total_ht">0.00 €</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
 
             <!-- Boutons d'action -->
             <div class="mt-6 flex justify-end space-x-3">
@@ -708,11 +829,9 @@ try {
     </div>
 </div>
 
-
-<!-- Edit Intervention Modal -->
 <!-- Edit Intervention Modal -->
 <div id="editInterventionModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center p-6 border-b">
             <h3 class="text-lg font-semibold text-gray-800">Modifier l'intervention</h3>
             <button onclick="closeModal('editInterventionModal')" class="text-gray-400 hover:text-gray-500">
@@ -786,6 +905,77 @@ try {
                     </select>
                 </div>
             </div>
+            
+            <!-- Section des articles -->
+            <div class="mt-8 border-t border-gray-200 pt-6">
+                <h4 class="text-lg font-medium text-gray-900 mb-4">Articles à utiliser</h4>
+                
+                <!-- Sélection de catégorie -->
+                <div class="mb-4">
+                    <label for="edit_categorie_filter" class="block text-sm font-medium text-gray-700 mb-1">Filtrer par catégorie</label>
+                    <select id="edit_categorie_filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Toutes les catégories</option>
+                        <?php foreach ($categories as $categorie): ?>
+                            <option value="<?php echo $categorie['id']; ?>"><?php echo htmlspecialchars($categorie['nom']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <!-- Recherche d'articles -->
+                <div class="mb-4">
+                    <label for="edit_article_search" class="block text-sm font-medium text-gray-700 mb-1">Rechercher un article</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <input type="text" id="edit_article_search" class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Rechercher par référence, désignation...">
+                    </div>
+                </div>
+                
+                <!-- Liste des articles -->
+                <div class="border border-gray-300 rounded-md overflow-hidden">
+                    <div class="max-h-64 overflow-y-auto" id="edit_articles_container">
+                        <div class="p-4 text-center text-gray-500">
+                            Sélectionnez une catégorie ou recherchez un article
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Articles sélectionnés -->
+                <div class="mt-6">
+                    <h5 class="text-md font-medium text-gray-900 mb-2">Articles sélectionnés</h5>
+                    <div class="border border-gray-300 rounded-md overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200" id="edit_selected_articles_table">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référence</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Désignation</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix unitaire</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remise</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="edit_selected_articles_body">
+                                <tr>
+                                    <td colspan="7" class="px-4 py-3 text-center text-gray-500">Aucun article sélectionné</td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-gray-50">
+                                <tr>
+                                    <td colspan="5" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900" id="edit_total_ht">0.00 €</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
             <div class="mt-6 flex justify-end space-x-3">
                 <button type="button" onclick="closeModal('editInterventionModal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     Annuler
@@ -795,10 +985,12 @@ try {
                 </button>
             </div>
             <p class="text-xs text-gray-500 mt-4">Les champs marqués d'un <span class="text-red-500">*</span> sont obligatoires.</p>
+            
+            <!-- Champ caché pour stocker les articles sélectionnés -->
+            <input type="hidden" id="edit_selected_articles_json" name="selected_articles" value="[]">
         </form>
     </div>
 </div>
-
 
 <!-- Assign Technicien Modal -->
 <div id="assignTechnicienModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
@@ -872,8 +1064,288 @@ function closeModal(modalId) {
     document.body.classList.remove('overflow-hidden');
 }
 
+// Variables globales pour stocker les articles
+let allArticles = [];
+let selectedArticles = [];
+let editSelectedArticles = [];
+
+// Fonction pour charger les articles par catégorie
+function loadArticlesByCategory(categoryId, mode = 'add') {
+    const containerSelector = mode === 'add' ? '#articles_container' : '#edit_articles_container';
+    const container = document.querySelector(containerSelector);
+    
+    container.innerHTML = '<div class="p-4 text-center text-gray-500">Chargement des articles...</div>';
+    
+    // Requête AJAX pour récupérer les articles
+    fetch(`get_articles.php?categorie_id=${categoryId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allArticles = data.articles;
+                displayArticles(allArticles, mode);
+            } else {
+                container.innerHTML = `<div class="p-4 text-center text-red-500">${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            container.innerHTML = '<div class="p-4 text-center text-red-500">Erreur lors du chargement des articles</div>';
+        });
+}
+
+// Fonction pour rechercher des articles
+function searchArticles(searchTerm, mode = 'add') {
+    if (searchTerm.length < 2) return;
+    
+    const containerSelector = mode === 'add' ? '#articles_container' : '#edit_articles_container';
+    const container = document.querySelector(containerSelector);
+    
+    container.innerHTML = '<div class="p-4 text-center text-gray-500">Recherche en cours...</div>';
+    
+    // Requête AJAX pour rechercher les articles
+    fetch(`search_articles.php?search=${encodeURIComponent(searchTerm)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allArticles = data.articles;
+                displayArticles(allArticles, mode);
+            } else {
+                container.innerHTML = `<div class="p-4 text-center text-red-500">${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            container.innerHTML = '<div class="p-4 text-center text-red-500">Erreur lors de la recherche</div>';
+        });
+}
+
+// Fonction pour afficher les articles dans le conteneur
+function displayArticles(articles, mode = 'add') {
+    const containerSelector = mode === 'add' ? '#articles_container' : '#edit_articles_container';
+    const container = document.querySelector(containerSelector);
+    
+    if (articles.length === 0) {
+        container.innerHTML = '<div class="p-4 text-center text-gray-500">Aucun article trouvé</div>';
+        return;
+    }
+    
+    let html = '<div class="divide-y divide-gray-200">';
+    
+    articles.forEach(article => {
+        const isSelected = mode === 'add' 
+            ? selectedArticles.some(a => a.id === article.id)
+            : editSelectedArticles.some(a => a.id === article.id);
+        
+        html += `
+            <div class="p-4 hover:bg-gray-50 flex justify-between items-center">
+                <div>
+                    <div class="font-medium text-gray-800">${article.reference} - ${article.designation}</div>
+                    <div class="text-sm text-gray-500">Prix: ${parseFloat(article.prix_vente_ht).toFixed(2)} € | Stock: ${article.stock}</div>
+                </div>
+                <button type="button" 
+                    class="${isSelected ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'} px-3 py-1 rounded-md text-sm"
+                    onclick="${isSelected ? `removeArticle(${article.id}, '${mode}')` : `addArticle(${JSON.stringify(article).replace(/"/g, '&quot;')}, '${mode}')`}">
+                    ${isSelected ? 'Ajouté ✓' : 'Ajouter'}
+                </button>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Fonction pour ajouter un article à la liste des sélectionnés
+function addArticle(article, mode = 'add') {
+    // Déterminer quelle liste et quels éléments DOM utiliser
+    const articlesList = mode === 'add' ? selectedArticles : editSelectedArticles;
+    const tableBodyId = mode === 'add' ? 'selected_articles_body' : 'edit_selected_articles_body';
+    const totalHtId = mode === 'add' ? 'total_ht' : 'edit_total_ht';
+    const hiddenInputId = mode === 'add' ? 'selected_articles_json' : 'edit_selected_articles_json';
+    
+    // Vérifier si l'article est déjà dans la liste
+    if (articlesList.some(a => a.id === article.id)) {
+        return;
+    }
+    
+    // Ajouter l'article avec une quantité par défaut de 1 et sans remise
+    const newArticle = {
+        ...article,
+        quantite: 1,
+        remise: 0,
+        total: parseFloat(article.prix_vente_ht)
+    };
+    
+    articlesList.push(newArticle);
+    
+    // Mettre à jour l'affichage
+    updateSelectedArticlesDisplay(mode);
+    
+    // Mettre à jour la liste des articles disponibles pour marquer celui-ci comme sélectionné
+    displayArticles(allArticles, mode);
+}
+
+// Fonction pour supprimer un article de la liste des sélectionnés
+function removeArticle(articleId, mode = 'add') {
+    // Déterminer quelle liste utiliser
+    const articlesList = mode === 'add' ? selectedArticles : editSelectedArticles;
+    
+    // Trouver l'index de l'article à supprimer
+    const index = articlesList.findIndex(a => a.id === articleId);
+    
+    if (index !== -1) {
+        // Supprimer l'article de la liste
+        articlesList.splice(index, 1);
+        
+        // Mettre à jour l'affichage
+        updateSelectedArticlesDisplay(mode);
+        
+        // Mettre à jour la liste des articles disponibles
+        displayArticles(allArticles, mode);
+    }
+}
+
+// Fonction pour mettre à jour la quantité d'un article
+function updateQuantity(articleId, newQuantity, mode = 'add') {
+    // Déterminer quelle liste utiliser
+    const articlesList = mode === 'add' ? selectedArticles : editSelectedArticles;
+    
+    // Trouver l'article
+    const article = articlesList.find(a => a.id === articleId);
+    
+    if (article) {
+        // Mettre à jour la quantité
+        article.quantite = parseInt(newQuantity);
+        
+        // Recalculer le total
+        article.total = (article.prix_vente_ht * article.quantite) * (1 - article.remise / 100);
+        
+        // Mettre à jour l'affichage
+        updateSelectedArticlesDisplay(mode);
+    }
+}
+// Fonction pour mettre à jour la remise d'un article
+function updateRemise(articleId, newRemise, mode = 'add') {
+    // Déterminer quelle liste utiliser
+    const articlesList = mode === 'add' ? selectedArticles : editSelectedArticles;
+    
+    // Trouver l'article
+    const article = articlesList.find(a => a.id === articleId);
+    
+    if (article) {
+        // Mettre à jour la remise
+        article.remise = parseFloat(newRemise);
+        
+        // Recalculer le total
+        article.total = (article.prix_vente_ht * article.quantite) * (1 - article.remise / 100);
+        
+        // Mettre à jour l'affichage
+        updateSelectedArticlesDisplay(mode);
+    }
+}
+
+// Fonction pour mettre à jour l'affichage des articles sélectionnés
+function updateSelectedArticlesDisplay(mode = 'add') {
+    // Déterminer quels éléments DOM utiliser
+    const articlesList = mode === 'add' ? selectedArticles : editSelectedArticles;
+    const tableBodyId = mode === 'add' ? 'selected_articles_body' : 'edit_selected_articles_body';
+    const totalHtId = mode === 'add' ? 'total_ht' : 'edit_total_ht';
+    const hiddenInputId = mode === 'add' ? 'selected_articles_json' : 'edit_selected_articles_json';
+    
+    const tableBody = document.getElementById(tableBodyId);
+    const totalHtElement = document.getElementById(totalHtId);
+    const hiddenInput = document.getElementById(hiddenInputId);
+    
+    // Si la liste est vide, afficher un message
+    if (articlesList.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="px-4 py-3 text-center text-gray-500">Aucun article sélectionné</td>
+            </tr>
+        `;
+        totalHtElement.textContent = '0.00 €';
+        hiddenInput.value = JSON.stringify([]);
+        return;
+    }
+    
+    // Calculer le total HT
+    let totalHt = 0;
+    
+    // Générer les lignes du tableau
+    let html = '';
+    articlesList.forEach(article => {
+        const total = article.total;
+        totalHt += total;
+        
+        html += `
+            <tr>
+                <td class="px-4 py-3 text-sm text-gray-800">${article.reference}</td>
+                <td class="px-4 py-3 text-sm text-gray-800">${article.designation}</td>
+                <td class="px-4 py-3 text-sm">
+                    <input type="number" min="1" value="${article.quantite}" 
+                           class="w-16 px-2 py-1 border border-gray-300 rounded-md"
+                           onchange="updateQuantity(${article.id}, this.value, '${mode}')">
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800">${parseFloat(article.prix_vente_ht).toFixed(2)} €</td>
+                <td class="px-4 py-3 text-sm">
+                    <input type="number" min="0" max="100" value="${article.remise}" 
+                           class="w-16 px-2 py-1 border border-gray-300 rounded-md"
+                           onchange="updateRemise(${article.id}, this.value, '${mode}')"> %
+                </td>
+                <td class="px-4 py-3 text-sm font-medium text-gray-800">${total.toFixed(2)} €</td>
+                <td class="px-4 py-3 text-sm">
+                    <button type="button" class="text-red-600 hover:text-red-800" 
+                            onclick="removeArticle(${article.id}, '${mode}')">
+                        Supprimer
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+    totalHtElement.textContent = totalHt.toFixed(2) + ' €';
+    
+    // Mettre à jour le champ caché avec les données JSON
+    hiddenInput.value = JSON.stringify(articlesList);
+}
+
 // Afficher la spécialité du technicien sélectionné
 document.addEventListener('DOMContentLoaded', function() {
+    // Configuration des filtres de catégories et recherche d'articles
+    const categorieFilter = document.getElementById('categorie_filter');
+    const articleSearch = document.getElementById('article_search');
+    const editCategorieFilter = document.getElementById('edit_categorie_filter');
+    const editArticleSearch = document.getElementById('edit_article_search');
+    
+    if (categorieFilter) {
+        categorieFilter.addEventListener('change', function() {
+            loadArticlesByCategory(this.value, 'add');
+        });
+    }
+    
+    if (articleSearch) {
+        articleSearch.addEventListener('input', function() {
+            if (this.value.length >= 2) {
+                searchArticles(this.value, 'add');
+            }
+        });
+    }
+    
+    if (editCategorieFilter) {
+        editCategorieFilter.addEventListener('change', function() {
+            loadArticlesByCategory(this.value, 'edit');
+        });
+    }
+    
+    if (editArticleSearch) {
+        editArticleSearch.addEventListener('input', function() {
+            if (this.value.length >= 2) {
+                searchArticles(this.value, 'edit');
+            }
+        });
+    }
+
     const technicienSelect = document.getElementById('technicien_id');
     const specialiteInfo = document.querySelector('.technicien-specialite');
     const specialiteSpan = document.getElementById('specialite_technicien');
@@ -929,16 +1401,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Fonction pour voir les détails d'une intervention
-// Fonction pour voir les détails d'une intervention
 function viewIntervention(id) {
     fetch(`recuperation_inter.php?id=${id}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 const intervention = data.intervention;
-                
-                // Remplir les informations d'ID
-               // document.getElementById('view_id_number').textContent = intervention.id;
                 
                 // Remplir les informations client et véhicule
                 document.getElementById('view_client').textContent = intervention.client_nom || 'Non spécifié';
@@ -1002,6 +1470,9 @@ function viewIntervention(id) {
                     technicienSpecialiteElement.textContent = 'Aucun technicien n\'est assigné à cette intervention';
                 }
                 
+                // Charger et afficher les articles associés à l'intervention
+                loadInterventionArticles(intervention.id);
+                
                 // Configurer le bouton d'édition
                 document.getElementById('editFromViewBtn').onclick = function() {
                     closeModal('viewInterventionModal');
@@ -1020,30 +1491,54 @@ function viewIntervention(id) {
         });
 }
 
-// Fonction utilitaire pour formater les dates (si non déjà formatées par le backend)
-function formatDate(dateString) {
-    if (!dateString) return '';
-    
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString; // Retourner la chaîne originale si la date est invalide
-    
-    return date.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
+// Fonction pour charger les articles associés à une intervention
+function loadInterventionArticles(interventionId) {
+    fetch(`get_intervention_articles.php?intervention_id=${interventionId}`)
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById('view_articles_body');
+            const totalHtElement = document.getElementById('view_total_ht');
+            
+            if (data.success && data.articles.length > 0) {
+                let html = '';
+                let totalHt = 0;
+                
+                data.articles.forEach(article => {
+                    const total = article.prix_unitaire * article.quantite * (1 - article.remise / 100);
+                    totalHt += total;
+                    
+                    html += `
+                        <tr>
+                            <td class="px-4 py-3 text-sm text-gray-800">${article.reference}</td>
+                            <td class="px-4 py-3 text-sm text-gray-800">${article.designation}</td>
+                            <td class="px-4 py-3 text-sm text-gray-800">${article.quantite}</td>
+                            <td class="px-4 py-3 text-sm text-gray-800">${parseFloat(article.prix_unitaire).toFixed(2)} €</td>
+                            <td class="px-4 py-3 text-sm text-gray-800">${article.remise} %</td>
+                            <td class="px-4 py-3 text-sm font-medium text-gray-800">${total.toFixed(2)} €</td>
+                        </tr>
+                    `;
+                });
+                
+                tableBody.innerHTML = html;
+                totalHtElement.textContent = totalHt.toFixed(2) + ' €';
+            } else {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-3 text-center text-gray-500">Aucun article utilisé</td>
+                    </tr>
+                `;
+                totalHtElement.textContent = '0.00 €';
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            document.getElementById('view_articles_body').innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-4 py-3 text-center text-red-500">Erreur lors du chargement des articles</td>
+                </tr>
+            `;
+        });
 }
-
-// Fonction pour afficher des notifications toast (à implémenter ou utiliser une bibliothèque comme Toastify)
-function showToast(type, message) {
-    // Implémentation simple d'alerte, à remplacer par une solution plus élégante
-    if (type === 'error') {
-        alert(message);
-    } else {
-        alert(message);
-    }
-}
-
 
 // Fonction pour éditer une intervention
 function editIntervention(id) {
@@ -1080,6 +1575,9 @@ function editIntervention(id) {
                     editSpecialiteInfo.classList.add('hidden');
                 }
                 
+                // Charger les articles associés à l'intervention pour l'édition
+                loadInterventionArticlesForEdit(intervention.id);
+                
                 // Ouvrir le modal
                 openModal('editInterventionModal');
             } else {
@@ -1089,6 +1587,39 @@ function editIntervention(id) {
         .catch(error => {
             console.error('Erreur:', error);
             alert('Une erreur est survenue lors de la récupération des données');
+        });
+}
+
+// Fonction pour charger les articles associés à une intervention pour l'édition
+function loadInterventionArticlesForEdit(interventionId) {
+    fetch(`get_intervention_articles.php?intervention_id=${interventionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Réinitialiser la liste des articles sélectionnés
+                editSelectedArticles = [];
+                
+                if (data.articles.length > 0) {
+                    // Convertir les articles reçus au format attendu
+                    data.articles.forEach(article => {
+                        editSelectedArticles.push({
+                            id: article.article_id,
+                            reference: article.reference,
+                            designation: article.designation,
+                            prix_vente_ht: article.prix_unitaire,
+                            quantite: article.quantite,
+                            remise: article.remise,
+                            total: article.prix_unitaire * article.quantite * (1 - article.remise / 100)
+                        });
+                    });
+                }
+                
+                // Mettre à jour l'affichage
+                updateSelectedArticlesDisplay('edit');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
         });
 }
 
@@ -1115,6 +1646,16 @@ function formatDateForInput(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
     return date.toISOString().split('T')[0];
+}
+
+// Fonction pour afficher des notifications toast
+function showToast(type, message) {
+    // Implémentation simple d'alerte, à remplacer par une solution plus élégante
+    if (type === 'error') {
+        alert(message);
+    } else {
+        alert(message);
+    }
 }
 
 // Fermer les modales si on clique en dehors
@@ -1160,5 +1701,4 @@ document.addEventListener('keydown', function(event) {
 </script>
 
 <?php include '../includes/footer.php'; ?>
-
 
