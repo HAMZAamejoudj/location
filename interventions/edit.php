@@ -2,13 +2,6 @@
 // Démarrer la session
 session_start();
 
-// Vérifier si l'utilisateur est connecté
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['error'] = "Vous devez être connecté pour accéder à cette page.";
-    header("Location: ../login.php");
-    exit;
-}
-
 // Chemin racine de l'application
 $root_path = dirname(__DIR__);
 
@@ -17,135 +10,283 @@ if (file_exists($root_path . '/config/database.php')) {
     require_once $root_path . '/config/database.php';
 }
 
-// Traitement du formulaire
+if (file_exists($root_path . '/includes/functions.php')) {
+    require_once $root_path . '/includes/functions.php';
+}
+
+// Vérifier si l'utilisateur est connecté
+if (!isset($_SESSION['user_id'])) {
+    $_SESSION['error'] = 'Vous devez être connecté pour effectuer cette action.';
+    header('Location: index.php');
+    exit;
+}
+
+// Vérifier si le formulaire a été soumis
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Récupérer l'ID de l'intervention à modifier
-    $id = isset($_POST['id']) ? filter_var($_POST['id'], FILTER_VALIDATE_INT) : null;
+    // Récupérer l'ID de l'intervention
+    $intervention_id = isset($_POST['id']) ? intval($_POST['id']) : 0;
     
-    if (!$id) {
-        $_SESSION['error'] = "ID d'intervention invalide.";
-        header("Location: index.php");
+    if (empty($intervention_id)) {
+        $_SESSION['error'] = 'ID d\'intervention invalide.';
+        header('Location: index.php');
         exit;
     }
     
     // Récupérer les données du formulaire
-    $vehicule_id = isset($_POST['vehicule_id']) ? filter_var($_POST['vehicule_id'], FILTER_VALIDATE_INT) : null;
-    $technicien_id = isset($_POST['technicien_id']) && !empty($_POST['technicien_id']) ? filter_var($_POST['technicien_id'], FILTER_VALIDATE_INT) : null;
+    $vehicule_id = isset($_POST['vehicule_id']) ? intval($_POST['vehicule_id']) : 0;
+    $technicien_id = isset($_POST['technicien_id']) && !empty($_POST['technicien_id']) ? intval($_POST['technicien_id']) : null;
     $date_prevue = isset($_POST['date_prevue']) && !empty($_POST['date_prevue']) ? $_POST['date_prevue'] : null;
     $date_debut = isset($_POST['date_debut']) && !empty($_POST['date_debut']) ? $_POST['date_debut'] : null;
     $date_fin = isset($_POST['date_fin']) && !empty($_POST['date_fin']) ? $_POST['date_fin'] : null;
-    $kilometrage = isset($_POST['kilometrage']) && !empty($_POST['kilometrage']) ? filter_var($_POST['kilometrage'], FILTER_VALIDATE_INT) : null;
+    $kilometrage = isset($_POST['kilometrage']) && !empty($_POST['kilometrage']) ? intval($_POST['kilometrage']) : null;
     $description = isset($_POST['description']) ? trim($_POST['description']) : '';
-    $diagnostique = isset($_POST['diagnostique']) ? trim($_POST['diagnostique']) : null;
-    $commentaire = isset($_POST['commentaire']) ? trim($_POST['commentaire']) : null;
-    $statut = isset($_POST['statut']) ? trim($_POST['statut']) : 'En attente';
-
+    $diagnostique = isset($_POST['diagnostique']) ? trim($_POST['diagnostique']) : '';
+    $commentaire = isset($_POST['commentaire']) ? trim($_POST['commentaire']) : '';
+    $statut = isset($_POST['statut']) ? $_POST['statut'] : 'En attente';
+    $create_commande = isset($_POST['create_commande']) ? true : false;
+    $commande_id = isset($_POST['commande_id']) && !empty($_POST['commande_id']) ? intval($_POST['commande_id']) : null;
+    $update_commande = isset($_POST['update_commande']) ? intval($_POST['update_commande']) : 0;
+    
+    // Articles et offres sélectionnés
+    $selected_articles = isset($_POST['selected_articles']) ? json_decode($_POST['selected_articles'], true) : [];
+    $selected_offres = isset($_POST['selected_offres']) ? json_decode($_POST['selected_offres'], true) : [];
+    
     // Validation des données
     $errors = [];
-    if (!$vehicule_id) {
-        $errors[] = "Veuillez sélectionner un véhicule.";
+    
+    if (empty($vehicule_id)) {
+        $errors[] = 'Veuillez sélectionner un véhicule.';
     }
+    
     if (empty($description)) {
-        $errors[] = "La description est obligatoire.";
+        $errors[] = 'La description est obligatoire.';
     }
-
-    // Si pas d'erreurs, procéder à la mise à jour
+    
+    // Si aucune erreur, procéder à la mise à jour
     if (empty($errors)) {
         try {
+            // Connexion à la base de données
             $database = new Database();
             $db = $database->getConnection();
-
-            // Préparer la requête de mise à jour
+            
+            // Démarrer une transaction
+            $db->beginTransaction();
+            
+            // Mettre à jour l'intervention
             $query = "UPDATE interventions SET 
-                        vehicule_id = :vehicule_id, 
-                        technicien_id = :technicien_id, 
-                        date_prevue = :date_prevue, 
-                        date_debut = :date_debut, 
-                        date_fin = :date_fin, 
-                        kilometrage = :kilometrage, 
-                        description = :description, 
-                        diagnostique = :diagnostique, 
-                        commentaire = :commentaire, 
-                        statut = :statut,
-                        date_modification = NOW()
+                      vehicule_id = :vehicule_id, 
+                      technicien_id = :technicien_id, 
+                      date_prevue = :date_prevue, 
+                      date_debut = :date_debut, 
+                      date_fin = :date_fin, 
+                      kilometrage = :kilometrage, 
+                      description = :description, 
+                      diagnostique = :diagnostique, 
+                      commentaire = :commentaire, 
+                      statut = :statut,
+                      date_modification = NOW()
                       WHERE id = :id";
-
+            
             $stmt = $db->prepare($query);
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->bindParam(':vehicule_id', $vehicule_id, PDO::PARAM_INT);
-            $stmt->bindParam(':technicien_id', $technicien_id, PDO::PARAM_INT);
+            $stmt->bindParam(':vehicule_id', $vehicule_id);
+            $stmt->bindParam(':technicien_id', $technicien_id);
             $stmt->bindParam(':date_prevue', $date_prevue);
             $stmt->bindParam(':date_debut', $date_debut);
             $stmt->bindParam(':date_fin', $date_fin);
-            $stmt->bindParam(':kilometrage', $kilometrage, PDO::PARAM_INT);
+            $stmt->bindParam(':kilometrage', $kilometrage);
             $stmt->bindParam(':description', $description);
             $stmt->bindParam(':diagnostique', $diagnostique);
             $stmt->bindParam(':commentaire', $commentaire);
             $stmt->bindParam(':statut', $statut);
-
-            $success = $stmt->execute();
-
-            if ($success) {
-                // Traitement des articles sélectionnés
-                if (isset($_POST['selected_articles'])) {
-                    try {
-                        // Supprimer d'abord tous les articles existants pour cette intervention
-                        $query_delete = "DELETE FROM interventions_articles WHERE intervention_id = :intervention_id";
-                        $stmt_delete = $db->prepare($query_delete);
-                        $stmt_delete->bindParam(':intervention_id', $id, PDO::PARAM_INT);
-                        $stmt_delete->execute();
-                        
-                        // Ajouter les nouveaux articles
-                        $articles = json_decode($_POST['selected_articles'], true);
-                        
-                        if (is_array($articles) && !empty($articles)) {
-                            // Préparer la requête d'insertion pour les articles
-                            $query_articles = "INSERT INTO interventions_articles 
-                                            (intervention_id, article_id, quantite, prix_unitaire, remise) 
-                                            VALUES 
-                                            (:intervention_id, :article_id, :quantite, :prix_unitaire, :remise)";
-                            
-                            $stmt_articles = $db->prepare($query_articles);
-                            
-                            foreach ($articles as $article) {
-                                $stmt_articles->bindParam(':intervention_id', $id, PDO::PARAM_INT);
-                                $stmt_articles->bindParam(':article_id', $article['id'], PDO::PARAM_INT);
-                                $stmt_articles->bindParam(':quantite', $article['quantite'], PDO::PARAM_INT);
-                                $stmt_articles->bindParam(':prix_unitaire', $article['prix_vente_ht'], PDO::PARAM_STR);
-                                $stmt_articles->bindParam(':remise', $article['remise'], PDO::PARAM_STR);
-                                $stmt_articles->execute();
-                            }
-                        }
-                    } catch (PDOException $e) {
-                        error_log('Erreur lors de la mise à jour des articles de l\'intervention: ' . $e->getMessage());
-                        $_SESSION['warning'] = 'L\'intervention a été mise à jour mais certains articles n\'ont pas pu être modifiés.';
+            $stmt->bindParam(':id', $intervention_id);
+            
+            if ($stmt->execute()) {
+                // Supprimer les articles et offres existants
+                $query = "DELETE FROM interventions_articles WHERE intervention_id = :intervention_id";
+                $stmt = $db->prepare($query);
+                $stmt->bindParam(':intervention_id', $intervention_id);
+                $stmt->execute();
+                
+                $query = "DELETE FROM interventions_offres WHERE intervention_id = :intervention_id";
+                $stmt = $db->prepare($query);
+                $stmt->bindParam(':intervention_id', $intervention_id);
+                $stmt->execute();
+                
+                // Insérer les nouveaux articles sélectionnés
+                if (!empty($selected_articles)) {
+                    $query = "INSERT INTO interventions_articles (intervention_id, article_id, quantite, prix_unitaire, remise) 
+                              VALUES (:intervention_id, :article_id, :quantite, :prix_unitaire, :remise)";
+                    $stmt = $db->prepare($query);
+                    
+                    foreach ($selected_articles as $article) {
+                        $stmt->bindParam(':intervention_id', $intervention_id);
+                        $stmt->bindParam(':article_id', $article['id']);
+                        $stmt->bindParam(':quantite', $article['quantite']);
+                        $stmt->bindParam(':prix_unitaire', $article['prix_unitaire']);
+                        $stmt->bindParam(':remise', $article['remise']);
+                        $stmt->execute();
                     }
                 }
                 
-                $_SESSION['success'] = "L'intervention a été mise à jour avec succès.";
-                header("Location: index.php");
+                // Insérer les nouvelles offres sélectionnées
+                if (!empty($selected_offres)) {
+                    $query = "INSERT INTO interventions_offres (intervention_id, offre_id, quantite, prix_unitaire, remise) 
+                              VALUES (:intervention_id, :offre_id, :quantite, :prix_unitaire, :remise)";
+                    $stmt = $db->prepare($query);
+                    
+                    foreach ($selected_offres as $offre) {
+                        $stmt->bindParam(':intervention_id', $intervention_id);
+                        $stmt->bindParam(':offre_id', $offre['id']);
+                        $stmt->bindParam(':quantite', $offre['quantite']);
+                        $stmt->bindParam(':prix_unitaire', $offre['prix_unitaire']);
+                        $stmt->bindParam(':remise', $offre['remise']);
+                        $stmt->execute();
+                    }
+                }
+                
+                // Créer une commande si demandé
+                if ($create_commande && !$commande_id) {
+                    // Récupérer les informations du client à partir du véhicule
+                    $query = "SELECT v.client_id FROM vehicules v WHERE v.id = :vehicule_id";
+                    $stmt = $db->prepare($query);
+                    $stmt->bindParam(':vehicule_id', $vehicule_id);
+                    $stmt->execute();
+                    $client_id = $stmt->fetchColumn();
+                    
+                    if ($client_id) {
+                        // Créer la commande
+                        $query = "INSERT INTO commandes (ID_client , vehicule_id, date_creation, Statut_Commande, user_id, intervention_id) 
+                                  VALUES (:client_id, :vehicule_id, NOW(), 'En attente', :user_id, :intervention_id)";
+                        $stmt = $db->prepare($query);
+                        $stmt->bindParam(':client_id', $client_id);
+                        $stmt->bindParam(':vehicule_id', $vehicule_id);
+                        $stmt->bindParam(':user_id', $_SESSION['user_id']);
+                        $stmt->bindParam(':intervention_id', $intervention_id);
+                        
+                        if ($stmt->execute()) {
+                            $commande_id = $db->lastInsertId();
+                            
+                            // Mettre à jour l'intervention avec l'ID de la commande
+                            $query = "UPDATE interventions SET commande_id = :commande_id WHERE id = :intervention_id";
+                            $stmt = $db->prepare($query);
+                            $stmt->bindParam(':commande_id', $commande_id);
+                            $stmt->bindParam(':intervention_id', $intervention_id);
+                            $stmt->execute();
+                            
+                            // Ajouter les articles à la commande
+                            if (!empty($selected_articles)) {
+                                $query = "INSERT INTO commande_articles (commande_id, article_id, quantite, prix_unitaire, remise) 
+                                          VALUES (:commande_id, :article_id, :quantite, :prix_unitaire, :remise)";
+                                $stmt = $db->prepare($query);
+                                
+                                foreach ($selected_articles as $article) {
+                                    $stmt->bindParam(':commande_id', $commande_id);
+                                    $stmt->bindParam(':article_id', $article['id']);
+                                    $stmt->bindParam(':quantite', $article['quantite']);
+                                    $stmt->bindParam(':prix_unitaire', $article['prix_unitaire']);
+                                    $stmt->bindParam(':remise', $article['remise']);
+                                    $stmt->execute();
+                                }
+                            }
+                            
+                            // Ajouter les offres à la commande
+                            if (!empty($selected_offres)) {
+                                $query = "INSERT INTO commande_offres (commande_id, offre_id, quantite, prix_unitaire, remise) 
+                                          VALUES (:commande_id, :offre_id, :quantite, :prix_unitaire, :remise)";
+                                $stmt = $db->prepare($query);
+                                
+                                foreach ($selected_offres as $offre) {
+                                    $stmt->bindParam(':commande_id', $commande_id);
+                                    $stmt->bindParam(':offre_id', $offre['id']);
+                                    $stmt->bindParam(':quantite', $offre['quantite']);
+                                    $stmt->bindParam(':prix_unitaire', $offre['prix_unitaire']);
+                                    $stmt->bindParam(':remise', $offre['remise']);
+                                    $stmt->execute();
+                                }
+                            }
+                        }
+                    }
+                }
+                // Mettre à jour la commande existante si demandé
+                else if ($commande_id && $update_commande) {
+                    // Supprimer les articles et offres existants de la commande
+                    $query = "DELETE FROM commande_articles WHERE commande_id = :commande_id";
+                    $stmt = $db->prepare($query);
+                    $stmt->bindParam(':commande_id', $commande_id);
+                    $stmt->execute();
+                    
+                    $query = "DELETE FROM commande_offres WHERE commande_id = :commande_id";
+                    $stmt = $db->prepare($query);
+                    $stmt->bindParam(':commande_id', $commande_id);
+                    $stmt->execute();
+                    
+                    // Ajouter les nouveaux articles à la commande
+                    if (!empty($selected_articles)) {
+                        $query = "INSERT INTO commande_articles (commande_id, article_id, quantite, prix_unitaire, remise) 
+                                  VALUES (:commande_id, :article_id, :quantite, :prix_unitaire, :remise)";
+                        $stmt = $db->prepare($query);
+                        
+                        foreach ($selected_articles as $article) {
+                            $stmt->bindParam(':commande_id', $commande_id);
+                            $stmt->bindParam(':article_id', $article['id']);
+                            $stmt->bindParam(':quantite', $article['quantite']);
+                            $stmt->bindParam(':prix_unitaire', $article['prix_unitaire']);
+                            $stmt->bindParam(':remise', $article['remise']);
+                            $stmt->execute();
+                        }
+                    }
+                    
+                    // Ajouter les nouvelles offres à la commande
+                    if (!empty($selected_offres)) {
+                        $query = "INSERT INTO commande_offres (commande_id, offre_id, quantite, prix_unitaire, remise) 
+                                  VALUES (:commande_id, :offre_id, :quantite, :prix_unitaire, :remise)";
+                        $stmt = $db->prepare($query);
+                        
+                        foreach ($selected_offres as $offre) {
+                            $stmt->bindParam(':commande_id', $commande_id);
+                            $stmt->bindParam(':offre_id', $offre['id']);
+                            $stmt->bindParam(':quantite', $offre['quantite']);
+                            $stmt->bindParam(':prix_unitaire', $offre['prix_unitaire']);
+                            $stmt->bindParam(':remise', $offre['remise']);
+                            $stmt->execute();
+                        }
+                    }
+                    
+                    // Mettre à jour la date de modification de la commande
+                    $query = "UPDATE commandes SET date_modification = NOW() WHERE id = :commande_id";
+                    $stmt = $db->prepare($query);
+                    $stmt->bindParam(':commande_id', $commande_id);
+                    $stmt->execute();
+                }
+                
+                // Valider la transaction
+                $db->commit();
+                
+                // Message de succès
+                $_SESSION['success'] = 'L\'intervention a été mise à jour avec succès.';
+                header('Location: index.php');
                 exit;
             } else {
-                $_SESSION['error'] = "Une erreur est survenue lors de la mise à jour de l'intervention.";
-                header("Location: index.php");
+                $db->rollBack();
+                $_SESSION['error'] = 'Une erreur est survenue lors de la mise à jour de l\'intervention.';
+                header('Location: index.php');
                 exit;
             }
         } catch (PDOException $e) {
-            error_log('Erreur lors de la mise à jour de l\'intervention: ' . $e->getMessage());
-            $_SESSION['error'] = "Une erreur de base de données est survenue.";
-            header("Location: index.php");
+            $db->rollBack();
+            $_SESSION['error'] = 'Erreur de base de données: ' . $e->getMessage();
+            header('Location: index.php');
             exit;
         }
     } else {
-        // Stocker les erreurs dans la session
-        $_SESSION['error'] = implode("<br>", $errors);
-        $_SESSION['form_data'] = $_POST; // Stocker les données du formulaire pour les réafficher
-        header("Location: index.php");
+        // Afficher les erreurs
+        $_SESSION['error'] = implode('<br>', $errors);
+        header('Location: index.php');
         exit;
     }
 } else {
-    // Si accès direct à ce fichier sans soumission de formulaire
-    header("Location: index.php");
+    // Redirection si accès direct
+    header('Location: index.php');
     exit;
 }
 ?>

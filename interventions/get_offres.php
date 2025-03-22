@@ -16,37 +16,37 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Récupérer le terme de recherche
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
-
-if (empty($search)) {
-    echo json_encode(['success' => false, 'message' => 'Terme de recherche non spécifié.']);
-    exit;
-}
+// Récupérer l'ID de la catégorie (optionnel)
+$categorie_id = isset($_GET['categorie_id']) ? intval($_GET['categorie_id']) : 0;
 
 try {
     // Connexion à la base de données
     $database = new Database();
     $db = $database->getConnection();
     
-    // Rechercher les articles correspondant au terme de recherche
-    $query = "SELECT a.* FROM articles a
-              WHERE a.reference LIKE :search 
-              OR a.designation LIKE :search
-              ORDER BY a.designation ASC
-              LIMIT 50";
+    // Construire la requête en fonction de la présence ou non d'une catégorie
+    $query = "SELECT o.* FROM offres o";
     
-    $stmt = $db->prepare($query);
-    $searchParam = '%' . $search . '%';
-    $stmt->bindParam(':search', $searchParam);
-    $stmt->execute();
-    
-    $articles = [];
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $articles[] = $row;
+    if ($categorie_id > 0) {
+        $query .= " WHERE o.categorie_id = :categorie_id";
     }
     
-    echo json_encode(['success' => true, 'articles' => $articles]);
+    $query .= " ORDER BY o.nom ASC";
+    
+    $stmt = $db->prepare($query);
+    
+    if ($categorie_id > 0) {
+        $stmt->bindParam(':categorie_id', $categorie_id);
+    }
+    
+    $stmt->execute();
+    
+    $offres = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $offres[] = $row;
+    }
+    
+    echo json_encode(['success' => true, 'offres' => $offres]);
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'message' => 'Erreur de base de données: ' . $e->getMessage()]);
 }
