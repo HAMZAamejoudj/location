@@ -31,18 +31,24 @@ $currentUser = [
 $database = new Database();
 $db = $database->getConnection();
 
-// Récupérer la liste des fournisseurs
-$fournisseurs = [];
+// Récupérer la liste des clients
+$clients = [];
 try {
-    $query = "SELECT * FROM fournisseurs ORDER BY ID_Fournisseur";
+    $query = "SELECT id, 
+                     CASE 
+                        WHEN type_client_id = 1 THEN CONCAT(prenom, ' ', nom)
+                        ELSE CONCAT(nom, ' - ', raison_sociale)
+                     END AS Nom_Client
+              FROM clients 
+              ORDER BY Nom_Client";
     $stmt = $db->prepare($query);
     $stmt->execute();
     
     if ($stmt->rowCount() > 0) {
-        $fournisseurs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } 
 } catch (PDOException $e) {
-    $errors['database'] = 'Erreur lors de la récupération des fournisseurs: ' . $e->getMessage();
+    $errors['database'] = 'Erreur lors de la récupération des clients: ' . $e->getMessage();
 }
 
 // Données pour les commandes
@@ -52,21 +58,67 @@ try {
     $pageCourante = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
     $debut = ($pageCourante - 1) * $commandesParPage;
 
-    // Récupérer le nombre total de commandes
-    $stmtTotal = $db->query("SELECT COUNT(*) FROM commandes");
+    // Construire la requête avec les filtres
+    $whereConditions = [];
+    $params = [];
+    
+    // Filtre de recherche
+    if (isset($_GET['search']) && !empty($_GET['search'])) {
+        $whereConditions[] = "(c.Numero_Commande LIKE :search OR cl.nom LIKE :search OR cl.prenom LIKE :search)";
+        $params[':search'] = '%' . $_GET['search'] . '%';
+    }
+    
+    // Filtre par statut
+    if (isset($_GET['statut']) && !empty($_GET['statut'])) {
+        $whereConditions[] = "c.Statut_Commande = :statut";
+        $params[':statut'] = $_GET['statut'];
+    }
+    
+    // Filtre par client
+    if (isset($_GET['client_id']) && !empty($_GET['client_id'])) {
+        $whereConditions[] = "c.ID_Client = :client_id";
+        $params[':client_id'] = $_GET['client_id'];
+    }
+    
+    // Construire la clause WHERE
+    $whereClause = '';
+    if (!empty($whereConditions)) {
+        $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
+    }
+    
+    // Récupérer le nombre total de commandes avec les filtres
+    $queryTotal = "SELECT COUNT(*) FROM commandes c 
+                   INNER JOIN clients cl ON c.ID_Client = cl.id 
+                   $whereClause";
+    $stmtTotal = $db->prepare($queryTotal);
+    foreach ($params as $key => $value) {
+        $stmtTotal->bindValue($key, $value);
+    }
+    $stmtTotal->execute();
     $totalCommandes = $stmtTotal->fetchColumn();
     $totalPages = ceil($totalCommandes / $commandesParPage);
 
-    // Requête paginée
-    $query = "SELECT c.ID_Commande, c.Numero_Commande, f.Code_Fournisseur, 
+    // Requête paginée avec filtres
+    $query = "SELECT c.ID_Commande, c.Numero_Commande, 
+                     CASE 
+                        WHEN cl.type_client_id = 1 THEN CONCAT(cl.prenom, ' ', cl.nom)
+                        ELSE CONCAT(cl.nom, ' - ', cl.raison_sociale)
+                     END AS Client_Nom,
                      c.Date_Commande, c.Date_Livraison_Prevue, c.Statut_Commande, 
                      c.Montant_Total_HT
               FROM commandes c
-              INNER JOIN fournisseurs f ON c.ID_Fournisseur = f.ID_Fournisseur
+              INNER JOIN clients cl ON c.ID_Client = cl.id
+              $whereClause
               ORDER BY c.Date_Commande DESC
               LIMIT :debut, :commandesParPage";
 
     $stmt = $db->prepare($query);
+    
+    // Bind des paramètres de filtrage
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value);
+    }
+    
     $stmt->bindValue(':debut', $debut, PDO::PARAM_INT);
     $stmt->bindValue(':commandesParPage', $commandesParPage, PDO::PARAM_INT);
     $stmt->execute();
@@ -216,29 +268,44 @@ include $root_path . '/includes/header.php';
 
                 <!-- Search and Filter -->
                 <div class="flex flex-col md:flex-row gap-4 mb-6">
-                    <div class="relative flex-1">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
+                    <form action="" method="GET" class="w-full flex flex-col md:flex-row gap-4">
+                        <div class="relative flex-1">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" name="search" value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>" class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Rechercher une commande...">
                         </div>
-                        <input type="text" class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Rechercher une commande...">
-                    </div>
-                    <div class="flex gap-4">
-                        <select class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option>Tous les statuts</option>
-                            <option>En attente</option>
-                            <option>En cours</option>
-                            <option>Livrée</option>
-                            <option>Annulée</option>
-                        </select>
-                        <select class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option>Tous les fournisseurs</option>
-                            <?php foreach ($fournisseurs as $fournisseur): ?>
-                                <option value="<?php echo $fournisseur['ID_Fournisseur']; ?>"><?php echo htmlspecialchars($fournisseur['Code_Fournisseur']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                        <div class="flex gap-4">
+                            <select name="statut" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Tous les statuts</option>
+                                <option value="En attente" <?php echo (isset($_GET['statut']) && $_GET['statut'] == 'En attente') ? 'selected' : ''; ?>>En attente</option>
+                                <option value="En cours" <?php echo (isset($_GET['statut']) && $_GET['statut'] == 'En cours') ? 'selected' : ''; ?>>En cours</option>
+                                <option value="Livrée" <?php echo (isset($_GET['statut']) && $_GET['statut'] == 'Livrée') ? 'selected' : ''; ?>>Livrée</option>
+                                <option value="Annulée" <?php echo (isset($_GET['statut']) && $_GET['statut'] == 'Annulée') ? 'selected' : ''; ?>>Annulée</option>
+                            </select>
+                            <select name="client_id" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Tous les clients</option>
+                                <?php foreach ($clients as $client): ?>
+                                    <option value="<?php echo $client['id']; ?>" <?php echo (isset($_GET['client_id']) && $_GET['client_id'] == $client['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($client['Nom_Client']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200">
+                                Filtrer
+                            </button>
+                            <?php if(isset($_GET['search']) || isset($_GET['statut']) || isset($_GET['client_id'])): ?>
+                                <a href="?" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition duration-200">
+                                    Réinitialiser
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                        <?php if(isset($_GET['page'])): ?>
+                            <input type="hidden" name="page" value="<?php echo $pageCourante; ?>">
+                        <?php endif; ?>
+                    </form>
                 </div>
 
                 <!-- Table -->
@@ -247,7 +314,7 @@ include $root_path . '/includes/header.php';
                         <thead class="bg-gray-50">
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Commande</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fournisseur</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Commande</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Livraison prévue</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
@@ -259,7 +326,7 @@ include $root_path . '/includes/header.php';
                             <?php foreach ($commandes as $commande): ?>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($commande['Numero_Commande']); ?></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($commande['Code_Fournisseur']); ?></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($commande['Client_Nom']); ?></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo date('d/m/Y', strtotime($commande['Date_Commande'])); ?></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo date('d/m/Y', strtotime($commande['Date_Livraison_Prevue'])); ?></td>
                                     <td class="px-6 py-4 whitespace-nowrap">
@@ -297,6 +364,11 @@ include $root_path . '/includes/header.php';
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
+                            <?php if (empty($commandes)): ?>
+                                <tr>
+                                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">Aucune commande trouvée</td>
+                                </tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -304,31 +376,53 @@ include $root_path . '/includes/header.php';
                 <!-- Pagination -->
                 <div class="flex justify-between items-center mt-6">
                     <div class="text-sm text-gray-500">
-                        Affichage de <span class="font-medium"><?= $debut + 1 ?></span> à 
-                        <span class="font-medium"><?= min($debut + $commandesParPage, $totalCommandes) ?></span> 
-                        sur <span class="font-medium"><?= $totalCommandes ?></span> résultats
-                    </div>
-                    <div class="flex space-x-1">
-                        <?php if ($pageCourante > 1): ?>
-                            <a href="?page=<?= $pageCourante - 1 ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Précédent</a>
+                        <?php if ($totalCommandes > 0): ?>
+                            Affichage de <span class="font-medium"><?= $debut + 1 ?></span> à 
+                            <span class="font-medium"><?= min($debut + $commandesParPage, $totalCommandes) ?></span> 
+                            sur <span class="font-medium"><?= $totalCommandes ?></span> résultats
                         <?php else: ?>
-                            <span class="px-3 py-1 border border-gray-200 rounded-md text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">Précédent</span>
+                            Aucun résultat
                         <?php endif; ?>
-
-                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                            <?php if ($pageCourante == $i): ?>
-                                <span class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-white bg-blue-500"><?= $i ?></span>
+                    </div>
+                    <?php if ($totalPages > 1): ?>
+                        <div class="flex space-x-1">
+                            <?php 
+                            // Construire l'URL pour la pagination en préservant les filtres
+                            $queryParams = $_GET;
+                            ?>
+                            <?php if ($pageCourante > 1): ?>
+                                <?php 
+                                $queryParams['page'] = $pageCourante - 1;
+                                $prevPageUrl = '?' . http_build_query($queryParams);
+                                ?>
+                                <a href="<?= $prevPageUrl ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Précédent</a>
                             <?php else: ?>
-                                <a href="?page=<?= $i ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"><?= $i ?></a>
+                                <span class="px-3 py-1 border border-gray-200 rounded-md text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">Précédent</span>
                             <?php endif; ?>
-                        <?php endfor; ?>
 
-                        <?php if ($pageCourante < $totalPages): ?>
-                            <a href="?page=<?= $pageCourante + 1 ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Suivant</a>
-                        <?php else: ?>
-                            <span class="px-3 py-1 border border-gray-200 rounded-md text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">Suivant</span>
-                        <?php endif; ?>
-                    </div>
+                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                <?php 
+                                $queryParams['page'] = $i;
+                                $pageUrl = '?' . http_build_query($queryParams);
+                                ?>
+                                <?php if ($pageCourante == $i): ?>
+                                    <span class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-white bg-blue-500"><?= $i ?></span>
+                                <?php else: ?>
+                                    <a href="<?= $pageUrl ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"><?= $i ?></a>
+                                <?php endif; ?>
+                            <?php endfor; ?>
+
+                            <?php if ($pageCourante < $totalPages): ?>
+                                <?php 
+                                $queryParams['page'] = $pageCourante + 1;
+                                $nextPageUrl = '?' . http_build_query($queryParams);
+                                ?>
+                                <a href="<?= $nextPageUrl ?>" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Suivant</a>
+                            <?php else: ?>
+                                <span class="px-3 py-1 border border-gray-200 rounded-md text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">Suivant</span>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -352,9 +446,10 @@ include $root_path . '/includes/header.php';
             <form id="deleteForm" method="POST" action="delete.php">
                 <input type="hidden" name="id" id="deleteCommandeId">
                 <button type="submit" class="px-4 py-2 bg-red-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                    Supprimer
-                </button>
-            </form>
+                        Supprimer
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -378,6 +473,21 @@ include $root_path . '/includes/header.php';
             closeDeleteModal();
         }
     });
+
+    // Ajouter un événement de changement pour soumettre automatiquement le formulaire
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sélectionner tous les éléments select dans le formulaire de filtrage
+        const filterSelects = document.querySelectorAll('form select');
+        
+        // Ajouter un écouteur d'événement à chaque select
+        filterSelects.forEach(select => {
+            select.addEventListener('change', function() {
+                // Soumettre le formulaire parent
+                this.form.submit();
+            });
+        });
+    });
 </script>
 
 <?php include $root_path . '/includes/footer.php'; ?>
+                   

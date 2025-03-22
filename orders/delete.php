@@ -39,7 +39,7 @@ try {
     $db->beginTransaction();
     
     // 1. D'abord, supprimer les détails de la commande (lignes de commande)
-    $query = "DELETE FROM details_commande WHERE ID_Commande = :id";
+    $query = "DELETE FROM commande_details WHERE ID_Commande = :id";
     $stmt = $db->prepare($query);
     $stmt->bindParam(':id', $id_commande, PDO::PARAM_INT);
     $stmt->execute();

@@ -16,335 +16,510 @@ if (file_exists($root_path . '/includes/functions.php')) {
 
 // Vérifier si l'utilisateur est connecté, sinon rediriger vers la page de connexion
 if (!isset($_SESSION['user_id'])) {
-    //header('Location: login.php');
-    //exit;
-    $_SESSION['user_id'] = 1; // Utilisateur temporaire pour le développement
+    // Pour le développement, créer un utilisateur factice
+    $_SESSION['user_id'] = 1;
 }
 
-// Récupérer les informations de l'utilisateur actuel
+// Utilisateur temporaire pour éviter l'erreur
 $currentUser = [
     'name' => 'Utilisateur Test',
     'role' => 'Administrateur'
 ];
 
-// Vérifier si l'ID de la commande est fourni
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+// Récupérer la liste des véhicules et techniciens pour le formulaire
+$database = new Database();
+$db = $database->getConnection();
+
+// Vérifier si un ID est passé dans l'URL
+if (!isset($_GET['id']) || empty($_GET['id'])) {
     header('Location: index.php');
     exit;
 }
 
-$id_commande = intval($_GET['id']);
-
-// Initialize database connection
-$database = new Database();
-$db = $database->getConnection();
-
-// Récupérer les détails de la commande
+$id_commande = $_GET['id'];
 $commande = null;
-$articles = [];
-$error_message = null;
+$commande_details = [];
 
+// Récupérer les informations de la commande
 try {
-    // Récupérer les informations de la commande
-    $query = "SELECT c.*, f.Code_Fournisseur, f.Raison_Sociale AS nom_fournisseur, f.Adresse, f.Telephone, f.Email 
-    FROM commandes c
-    INNER JOIN fournisseurs f ON c.ID_Fournisseur = f.ID_Fournisseur
-    WHERE c.ID_Commande = :id";
-    
+    $query = "SELECT c.*, cl.id as client_id,
+                     CASE 
+                        WHEN cl.type_client_id = 1 THEN CONCAT(cl.prenom, ' ', cl.nom)
+                        ELSE CONCAT(cl.nom, ' - ', cl.raison_sociale)
+                     END AS Nom_Client,
+                     cl.adresse, cl.telephone, cl.email
+              FROM commandes c
+              LEFT JOIN clients cl ON c.ID_Client = cl.id
+              WHERE c.ID_Commande = :id_commande";
     $stmt = $db->prepare($query);
-    $stmt->bindParam(':id', $id_commande);
+    $stmt->bindParam(':id_commande', $id_commande);
     $stmt->execute();
-    
-    if ($stmt->rowCount() > 0) {
-        $commande = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Récupérer les articles de la commande
-        $query = "SELECT cd.*, a.reference, a.designation
-                  FROM commande_details cd
-                  INNER JOIN article a ON cd.article_id = a.id
-                  WHERE cd.ID_Commande = :id";
-        
-        $stmt = $db->prepare($query);
-        $stmt->bindParam(':id', $id_commande);
-        $stmt->execute();
-        
-        $articles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } else {
-        $error_message = "La commande demandée n'existe pas.";
+    $commande = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$commande) {
+        header('Location: index.php');
+        exit;
     }
+
+    // Récupérer les détails de la commande
+    $query = "SELECT cd.*, a.designation, a.reference 
+              FROM commande_details cd
+              LEFT JOIN article a ON cd.article_id = a.id
+              WHERE cd.ID_Commande = :id_commande";
+    $stmt = $db->prepare($query);
+    $stmt->bindParam(':id_commande', $id_commande);
+    $stmt->execute();
+    $commande_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $error_message = "Erreur lors de la récupération des données : " . $e->getMessage();
+    $error_message = "Erreur lors de la récupération des données: " . $e->getMessage();
 }
 
-// Inclure l'en-tête
+// Fonction pour formater les dates
+function formatDateFr($date) {
+    if (!$date) return '';
+    $timestamp = strtotime($date);
+    return date('d/m/Y', $timestamp);
+}
+
+// Fonction pour formater les montants
+function formatMontant($montant) {
+    return number_format($montant, 2, ',', ' ') . ' DH';
+}
+
+// Déterminer le statut de la commande pour l'affichage
+$statusClass = '';
+$statusBadge = '';
+
+switch ($commande['Statut_Commande']) {
+    case 'En attente':
+        $statusClass = 'bg-yellow-100 text-yellow-800';
+        $statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">En attente</span>';
+        break;
+    case 'Confirmée':
+        $statusClass = 'bg-blue-100 text-blue-800';
+        $statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Confirmée</span>';
+        break;
+    case 'Livrée':
+        $statusClass = 'bg-green-100 text-green-800';
+        $statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Livrée</span>';
+        break;
+    case 'Annulée':
+        $statusClass = 'bg-red-100 text-red-800';
+        $statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Annulée</span>';
+        break;
+    default:
+        $statusClass = 'bg-gray-100 text-gray-800';
+        $statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">' . $commande['Statut_Commande'] . '</span>';
+}
+
 include $root_path . '/includes/header.php';
 ?>
 
-<div class="flex h-screen bg-gray-100">
+<div class="flex h-screen bg-gray-50">
     <!-- Sidebar -->
     <?php include $root_path . '/includes/sidebar.php'; ?>
 
     <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto">
-        <div class="container mx-auto px-6 py-8">
-            <!-- Header with back button -->
-            <div class="flex justify-between items-center mb-6">
-                <div class="flex items-center">
-                    <a href="index.php" class="mr-4 text-gray-600 hover:text-gray-900">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <h1 class="text-2xl font-semibold text-gray-800">Détails de la Commande</h1>
-                </div>
+    <div class="flex-1 overflow-auto">
+        <header class="bg-white shadow-sm sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-900">Détails de la commande</h1>
                 <div class="flex space-x-3">
-                    <button id="print-btn" class="px-4 py-2 bg-green-600 text-white rounded-md flex items-center hover:bg-green-700 transition duration-200">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                    <button id="print-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
+                        <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
                         Imprimer
                     </button>
-                    <a href="edit.php?id=<?php echo $id_commande; ?>" class="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center hover:bg-blue-700 transition duration-200">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    <a href="edit.php?id=<?php echo $id_commande; ?>" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                        <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                         Modifier
                     </a>
+                    <a href="index.php" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                        <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                        </svg>
+                        Retour
+                    </a>
                 </div>
             </div>
+        </header>
 
-            <?php if ($error_message): ?>
-                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
-                    <p><?php echo $error_message; ?></p>
-                </div>
-            <?php elseif ($commande): ?>
-                <!-- Command Details -->
-                <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                        <div class="flex justify-between items-center">
-                            <h2 class="text-lg font-semibold text-gray-800">Bon de Commande N° <?php echo htmlspecialchars($commande['Numero_Commande']); ?></h2>
-                            <span class="<?php 
-                                switch ($commande['Statut_Commande']) {
-                                    case 'En attente':
-                                        echo 'bg-yellow-100 text-yellow-800';
-                                        break;
-                                    case 'En cours':
-                                        echo 'bg-blue-100 text-blue-800';
-                                        break;
-                                    case 'Livrée':
-                                        echo 'bg-green-100 text-green-800';
-                                        break;
-                                    case 'Annulée':
-                                        echo 'bg-red-100 text-red-800';
-                                        break;
-                                    default:
-                                        echo 'bg-gray-100 text-gray-800';
-                                }
-                            ?> px-3 py-1 rounded-full text-sm font-semibold">
-                                <?php echo htmlspecialchars($commande['Statut_Commande']); ?>
-                            </span>
+        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <?php if (isset($error_message)): ?>
+                <div class="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-md shadow-sm" role="alert">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
                         </div>
-                    </div>
-                    
-                    <div class="p-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                            <div>
-                                <h3 class="text-sm font-medium text-gray-500 mb-2">Informations de la commande</h3>
-                                <div class="space-y-2">
-                                    <p><span class="font-medium">Date de commande:</span> <?php echo date('d/m/Y', strtotime($commande['Date_Commande'])); ?></p>
-                                    <p><span class="font-medium">Date de livraison prévue:</span> <?php echo date('d/m/Y', strtotime($commande['Date_Livraison_Prevue'])); ?></p>
-                                    <p><span class="font-medium">Conditions de paiement:</span> <?php echo htmlspecialchars($commande['Conditions_Paiement'] ?? 'Non spécifié'); ?></p>
-                                    <p><span class="font-medium">Créé par:</span> <?php echo htmlspecialchars($commande['Cree_Par'] ?? 'Non spécifié'); ?></p>
-                                    <p><span class="font-medium">Date de création:</span> <?php echo isset($commande['Date_Creation']) ? date('d/m/Y H:i', strtotime($commande['Date_Creation'])) : 'Non spécifié'; ?></p>
-                                    <?php if (isset($commande['Modifie_Par']) && $commande['Modifie_Par']): ?>
-                                        <p><span class="font-medium">Modifié par:</span> <?php echo htmlspecialchars($commande['Modifie_Par']); ?></p>
-                                        <p><span class="font-medium">Date de modification:</span> <?php echo date('d/m/Y H:i', strtotime($commande['Date_Modification'])); ?></p>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <h3 class="text-sm font-medium text-gray-500 mb-2">Informations du fournisseur</h3>
-                                <div class="space-y-2">
-                                    <p><span class="font-medium">Code:</span> <?php echo htmlspecialchars($commande['Code_Fournisseur']); ?></p>
-                                    <p><span class="font-medium">Nom:</span> <?php echo htmlspecialchars($commande['nom_fournisseur']); ?></p>
-                                    <p><span class="font-medium">Adresse:</span> <?php echo htmlspecialchars($commande['Adresse'] ?? 'Non spécifié'); ?></p>
-                                    <p><span class="font-medium">Téléphone:</span> <?php echo htmlspecialchars($commande['Telephone'] ?? 'Non spécifié'); ?></p>
-                                    <p><span class="font-medium">Email:</span> <?php echo htmlspecialchars($commande['Email'] ?? 'Non spécifié'); ?></p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <?php if (isset($commande['Notes']) && $commande['Notes']): ?>
-                            <div class="mb-6">
-                                <h3 class="text-sm font-medium text-gray-500 mb-2">Notes</h3>
-                                <div class="bg-gray-50 p-4 rounded-md">
-                                    <p><?php echo nl2br(htmlspecialchars($commande['Notes'])); ?></p>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <h3 class="text-sm font-medium text-gray-500 mb-2">Articles commandés</h3>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Désignation</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unité</th>
-                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
-                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Prix unitaire</th>
-                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total HT</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <?php if (count($articles) > 0): ?>
-                                        <?php foreach ($articles as $article): ?>
-                                            <tr>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($article['reference']); ?></td>
-                                                <td class="px-6 py-4 text-sm text-gray-500"><?php echo htmlspecialchars($article['designation']); ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right"><?php echo $article['quantite']; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right"><?php echo number_format($article['prix_unitaire'], 2, ',', ' ') . ' DH'; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right"><?php echo number_format($article['montant_ht'], 2, ',', ' ') . ' DH'; ?></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">Aucun article trouvé pour cette commande.</td>
-                                        </tr>
-                                    <?php endif; ?>
-                                </tbody>
-                                <tfoot class="bg-gray-50">
-                                    <tr>
-                                        <td colspan="5" class="px-6 py-4 text-right text-sm font-medium text-gray-500">Total HT:</td>
-                                        <td class="px-6 py-4 text-right text-sm font-medium text-gray-900"><?php echo number_format($commande['Montant_Total_HT'], 2, ',', ' ') . ' DH'; ?></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium"><?php echo $error_message; ?></p>
                         </div>
                     </div>
                 </div>
             <?php endif; ?>
-        </div>
+
+            <!-- Command Details -->
+            <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+                <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Commande #<?php echo htmlspecialchars($commande['Numero_Commande']); ?></h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Détails de la commande et informations client</p>
+                    </div>
+                    <div>
+                        <?php echo $statusBadge; ?>
+                    </div>
+                </div>
+                <div class="border-t border-gray-200">
+                    <dl>
+                        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                            <dt class="text-sm font-medium text-gray-500">Numéro de commande</dt>
+                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo htmlspecialchars($commande['Numero_Commande']); ?></dd>
+                        </div>
+                        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                            <dt class="text-sm font-medium text-gray-500">Date de commande</dt>
+                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo formatDateFr($commande['Date_Commande']); ?></dd>
+                        </div>
+                        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                            <dt class="text-sm font-medium text-gray-500">Date de livraison prévue</dt>
+                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo formatDateFr($commande['Date_Livraison_Prevue']); ?></dd>
+                        </div>
+                        <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                            <dt class="text-sm font-medium text-gray-500">Client</dt>
+                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                <div class="font-medium"><?php echo htmlspecialchars($commande['Nom_Client']); ?></div>
+                                <?php if (!empty($commande['adresse'])): ?>
+                                    <div class="text-gray-600 mt-1"><?php echo nl2br(htmlspecialchars($commande['adresse'])); ?></div>
+                                <?php endif; ?>
+                                <div class="flex flex-wrap gap-x-4 mt-1">
+                                    <?php if (!empty($commande['telephone'])): ?>
+                                        <div class="flex items-center text-gray-600">
+                                            <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                            </svg>
+                                            <?php echo htmlspecialchars($commande['telephone']); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($commande['email'])): ?>
+                                        <div class="flex items-center text-gray-600">
+                                            <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                            </svg>
+                                            <?php echo htmlspecialchars($commande['email']); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </dd>
+                        </div>
+                        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                            <dt class="text-sm font-medium text-gray-500">Montant total HT</dt>
+                            <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 font-semibold"><?php echo formatMontant($commande['Montant_Total_HT']); ?></dd>
+                        </div>
+                        <?php if (!empty($commande['Notes'])): ?>
+                            <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                <dt class="text-sm font-medium text-gray-500">Notes</dt>
+                                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"><?php echo nl2br(htmlspecialchars($commande['Notes'])); ?></dd>
+                            </div>
+                        <?php endif; ?>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Articles List -->
+            <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+                <div class="px-4 py-5 sm:px-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Articles commandés</h3>
+                    <p class="mt-1 max-w-2xl text-sm text-gray-500">Liste des articles dans cette commande</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Désignation</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Prix unitaire</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total HT</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                        <?php if (empty($commande_details)): ?>
+                                <tr>
+                                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">Aucun article dans cette commande</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($commande_details as $detail): ?>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($detail['reference']); ?></td>
+                                        <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($detail['designation']); ?></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"><?php echo htmlspecialchars($detail['quantite']); ?></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"><?php echo formatMontant($detail['prix_unitaire']); ?></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium"><?php echo formatMontant($detail['montant_ht']); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                <!-- Total Row -->
+                                <tr class="bg-gray-50">
+                                    <td colspan="4" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">Total HT:</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 text-right"><?php echo formatMontant($commande['Montant_Total_HT']); ?></td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex justify-end space-x-3">
+                <a href="index.php" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                    Retour à la liste
+                </a>
+                <div class="relative" x-data="{ open: false }">
+                    <button @click="open = !open" type="button" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                        Actions
+                        <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                        <div class="py-1" role="none">
+                            <a href="edit.php?id=<?php echo $id_commande; ?>" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">
+                                <svg class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Modifier
+                            </a>
+                        </div>
+                        <div class="py-1" role="none">
+                            <a href="#" onclick="printCommand(); return false;" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">
+                                <svg class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                                Imprimer
+                            </a>
+                        </div>
+                        <?php if ($commande['Statut_Commande'] == 'En attente'): ?>
+                            <div class="py-1" role="none">
+                                <a href="change_status.php?id=<?php echo $id_commande; ?>&status=Confirmée" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">
+                                    <svg class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Confirmer la commande
+                                </a>
+                                <a href="change_status.php?id=<?php echo $id_commande; ?>&status=Annulée" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">
+                                    <svg class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Annuler la commande
+                                </a>
+                            </div>
+                        <?php elseif ($commande['Statut_Commande'] == 'Confirmée'): ?>
+                            <div class="py-1" role="none">
+                                <a href="change_status.php?id=<?php echo $id_commande; ?>&status=Livrée" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">
+                                    <svg class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Marquer comme livrée
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 </div>
 
 <!-- Print Template -->
 <div id="print-template" class="hidden">
     <div class="print-content p-8">
-        <div class="text-center mb-6">
+        <div class="text-center mb-8">
             <h1 class="text-2xl font-bold">Bon de Commande</h1>
-            <p class="text-lg">N° <?php echo isset($commande) ? htmlspecialchars($commande['Numero_Commande']) : ''; ?></p>
+            <p class="text-lg mt-2">N° <?php echo htmlspecialchars($commande['Numero_Commande']); ?></p>
         </div>
         
-        <div class="flex justify-between mb-6">
+        <div class="flex justify-between mb-8">
             <div>
-                <h2 class="font-bold">Fournisseur:</h2>
-                <p><?php echo isset($commande) ? htmlspecialchars($commande['Code_Fournisseur'] . ' - ' . $commande['nom_fournisseur']) : ''; ?></p>
-                <p><?php echo isset($commande) ? htmlspecialchars($commande['Adresse'] ?? '') : ''; ?></p>
-                <p><?php echo isset($commande) ? htmlspecialchars($commande['Telephone'] ?? '') : ''; ?></p>
-                <p><?php echo isset($commande) ? htmlspecialchars($commande['Email'] ?? '') : ''; ?></p>
+                <h2 class="font-bold text-lg">Client:</h2>
+                <p class="mt-1"><?php echo htmlspecialchars($commande['Nom_Client']); ?></p>
+                <?php if (!empty($commande['adresse'])): ?>
+                    <p class="text-gray-600 mt-1"><?php echo nl2br(htmlspecialchars($commande['adresse'])); ?></p>
+                <?php endif; ?>
+                <?php if (!empty($commande['telephone'])): ?>
+                    <p class="text-gray-600 mt-1">Tél: <?php echo htmlspecialchars($commande['telephone']); ?></p>
+                <?php endif; ?>
             </div>
             <div>
-                <p><strong>Date de commande:</strong> <?php echo isset($commande) ? date('d/m/Y', strtotime($commande['Date_Commande'])) : ''; ?></p>
-                <p><strong>Date de livraison prévue:</strong> <?php echo isset($commande) ? date('d/m/Y', strtotime($commande['Date_Livraison_Prevue'])) : ''; ?></p>
-                <p><strong>Statut:</strong> <?php echo isset($commande) ? htmlspecialchars($commande['Statut_Commande']) : ''; ?></p>
-                <p><strong>Conditions de paiement:</strong> <?php echo isset($commande) ? htmlspecialchars($commande['Conditions_Paiement'] ?? 'Non spécifié') : ''; ?></p>
+                <div class="mb-2">
+                    <span class="font-semibold">Date de commande:</span>
+                    <span class="ml-2"><?php echo formatDateFr($commande['Date_Commande']); ?></span>
+                </div>
+                <div>
+                    <span class="font-semibold">Date de livraison prévue:</span>
+                    <span class="ml-2"><?php echo formatDateFr($commande['Date_Livraison_Prevue']); ?></span>
+                </div>
+                <div class="mt-2">
+                    <span class="font-semibold">Statut:</span>
+                    <span class="ml-2"><?php echo htmlspecialchars($commande['Statut_Commande']); ?></span>
+                </div>
             </div>
         </div>
         
-        <table class="w-full mb-6 border-collapse">
+        <table class="w-full mb-8 border-collapse">
             <thead>
                 <tr class="bg-gray-200">
-                    <th class="border p-2 text-left">Référence</th>
-                    <th class="border p-2 text-left">Désignation</th>
-                    <th class="border p-2 text-left">Unité</th>
-                    <th class="border p-2 text-right">Quantité</th>
-                    <th class="border p-2 text-right">Prix unitaire</th>
-                    <th class="border p-2 text-right">Total HT</th>
+                    <th class="border border-gray-400 p-2 text-left">Référence</th>
+                    <th class="border border-gray-400 p-2 text-left">Désignation</th>
+                    <th class="border border-gray-400 p-2 text-right">Quantité</th>
+                    <th class="border border-gray-400 p-2 text-right">Prix unitaire</th>
+                    <th class="border border-gray-400 p-2 text-right">Total HT</th>
                 </tr>
             </thead>
             <tbody>
-                <?php if (isset($articles) && count($articles) > 0): ?>
-                    <?php foreach ($articles as $article): ?>
-                        <tr>
-                            <td class="border p-2"><?php echo htmlspecialchars($article['reference']); ?></td>
-                            <td class="border p-2"><?php echo htmlspecialchars($article['designation']); ?></td>
-                            <td class="border p-2 text-right"><?php echo $article['quantite']; ?></td>
-                            <td class="border p-2 text-right"><?php echo number_format($article['prix_unitaire'], 2, ',', ' ') . ' DH'; ?></td>
-                            <td class="border p-2 text-right"><?php echo number_format($article['montant_ht'], 2, ',', ' ') . ' DH'; ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
+                <?php foreach ($commande_details as $detail): ?>
                     <tr>
-                        <td colspan="6" class="border p-2 text-center">Aucun article trouvé pour cette commande.</td>
+                        <td class="border border-gray-400 p-2"><?php echo htmlspecialchars($detail['reference']); ?></td>
+                        <td class="border border-gray-400 p-2"><?php echo htmlspecialchars($detail['designation']); ?></td>
+                        <td class="border border-gray-400 p-2 text-right"><?php echo htmlspecialchars($detail['quantite']); ?></td>
+                        <td class="border border-gray-400 p-2 text-right"><?php echo formatMontant($detail['prix_unitaire']); ?></td>
+                        <td class="border border-gray-400 p-2 text-right"><?php echo formatMontant($detail['montant_ht']); ?></td>
                     </tr>
-                <?php endif; ?>
+                <?php endforeach; ?>
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="5" class="border p-2 text-right font-bold">Total HT:</td>
-                    <td class="border p-2 text-right"><?php echo isset($commande) ? number_format($commande['Montant_Total_HT'], 2, ',', ' ') . ' DH' : ''; ?></td>
+                    <td colspan="4" class="border border-gray-400 p-2 text-right font-bold">Total HT:</td>
+                    <td class="border border-gray-400 p-2 text-right"><?php echo formatMontant($commande['Montant_Total_HT']); ?></td>
                 </tr>
             </tfoot>
         </table>
         
-        <?php if (isset($commande) && isset($commande['Notes']) && $commande['Notes']): ?>
+        <?php if (!empty($commande['Notes'])): ?>
             <div class="mt-8">
                 <h3 class="font-bold mb-2">Notes:</h3>
-                <p class="border p-2"><?php echo nl2br(htmlspecialchars($commande['Notes'])); ?></p>
+                <p class="border p-3 min-h-[60px] bg-gray-50"><?php echo nl2br(htmlspecialchars($commande['Notes'])); ?></p>
             </div>
         <?php endif; ?>
         
-        <div class="mt-8 flex justify-between">
+        <div class="mt-12 flex justify-between">
             <div>
-                <p class="font-bold">Signature du responsable:</p>
-                <div class="h-16 w-32 border-b mt-12"></div>
+                <p class="font-bold mb-2">Signature du responsable:</p>
+                <div class="h-16 w-48 border-b border-gray-400 mt-12"></div>
             </div>
             <div>
-                <p class="font-bold">Cachet de l'entreprise:</p>
-                <div class="h-16 w-32 border mt-4"></div>
+                <p class="font-bold mb-2">Signature du client:</p>
+                <div class="h-16 w-48 border-b border-gray-400 mt-12"></div>
             </div>
+        </div>
+        
+        <div class="text-center text-sm text-gray-500 mt-8">
+            <p>Document généré le <?php echo date('d/m/Y à H:i'); ?></p>
         </div>
     </div>
 </div>
 
 <script>
-    // Function to print the command
-    document.getElementById('print-btn').addEventListener('click', function() {
+    // Function to prepare and print the command
+    function printCommand() {
+        // Open print dialog
         const printContent = document.getElementById('print-template').innerHTML;
         const printWindow = window.open('', '_blank');
-        
         printWindow.document.write(`
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Bon de Commande - <?php echo isset($commande) ? htmlspecialchars($commande['Numero_Commande']) : ''; ?></title>
+                <title>Bon de Commande - <?php echo htmlspecialchars($commande['Numero_Commande']); ?></title>
                 <meta charset="UTF-8">
                 <style>
-                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    th, td { border: 1px solid #ddd; padding: 8px; }
-                    th { background-color: #f2f2f2; text-align: left; }
-                    .text-right { text-align: right; }
-                    .text-center { text-align: center; }
-                    .font-bold { font-weight: bold; }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 0; 
+                        padding: 20px;
+                        color: #333;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin-bottom: 20px; 
+                    }
+                    th, td { 
+                        border: 1px solid #ddd; 
+                        padding: 8px; 
+                    }
+                    th { 
+                        background-color: #f2f2f2; 
+                        text-align: left; 
+                    }
+                    .text-right { 
+                        text-align: right; 
+                    }
+                    .text-center { 
+                        text-align: center; 
+                    }
+                    .font-bold { 
+                        font-weight: bold; 
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 20px;
+                        border-bottom: 2px solid #333;
+                        padding-bottom: 10px;
+                    }
+                    .header h1 {
+                        margin-bottom: 5px;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #666;
+                    }
                     @media print {
-                        body { margin: 0; padding: 15px; }
-                        button { display: none; }
+                        body { 
+                            margin: 0; 
+                            padding: 15px; 
+                        }
+                        button { 
+                            display: none; 
+                        }
+                        @page {
+                            size: A4;
+                            margin: 1cm;
+                        }
                     }
                 </style>
             </head>
             <body>
+                <div class="header">
+                    <h1>Bon de Commande</h1>
+                    <p>N° <?php echo htmlspecialchars($commande['Numero_Commande']); ?></p>
+                </div>
                 ${printContent}
+                <div class="footer">
+                    <p>Document généré le <?php echo date('d/m/Y à H:i'); ?></p>
+                </div>
                 <div class="text-center" style="margin-top: 20px;">
-                    <button onclick="window.print(); setTimeout(function() { window.close(); }, 500);">Imprimer</button>
+                    <button onclick="window.print(); setTimeout(function() { window.close(); }, 500);" 
+                            style="padding: 10px 20px; background-color: #4f46e5; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        Imprimer
+                    </button>
                 </div>
             </body>
             </html>
         `);
-        
         printWindow.document.close();
+    }
+
+    // Initialize event listeners when the DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add click event for the print button
+        document.getElementById('print-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            printCommand();
+        });
     });
 </script>
 

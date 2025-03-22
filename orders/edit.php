@@ -26,50 +26,51 @@ $currentUser = [
     'role' => 'Administrateur'
 ];
 
-// Vérifier si l'ID de la commande est fourni
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+// Récupérer la liste des véhicules et techniciens pour le formulaire
+$database = new Database();
+$db = $database->getConnection();
+
+// Vérifier si un ID est passé dans l'URL
+if (!isset($_GET['id']) || empty($_GET['id'])) {
     header('Location: index.php');
     exit;
 }
 
-$id_commande = intval($_GET['id']);
-
-// Initialize database connection
-$database = new Database();
-$db = $database->getConnection();
-
-// Récupérer les détails de la commande
+$id_commande = $_GET['id'];
 $commande = null;
 $commande_details = [];
-$error_message = null;
 
+// Récupérer les informations de la commande
 try {
-    // Récupérer les informations de la commande
-    $query = "SELECT c.* FROM commandes c WHERE c.ID_Commande = :id";
-    
+    $query = "SELECT c.*, cl.id as client_id,
+                     CASE 
+                        WHEN cl.type_client_id = 1 THEN CONCAT(cl.prenom, ' ', cl.nom)
+                        ELSE CONCAT(cl.nom, ' - ', cl.raison_sociale)
+                     END AS Nom_Client
+              FROM commandes c
+              LEFT JOIN clients cl ON c.ID_Client = cl.id
+              WHERE c.ID_Commande= :id_commande";
     $stmt = $db->prepare($query);
-    $stmt->bindParam(':id', $id_commande);
+    $stmt->bindParam(':id_commande', $id_commande);
     $stmt->execute();
-    
-    if ($stmt->rowCount() > 0) {
-        $commande = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Récupérer les articles de la commande
-        $query = "SELECT cd.*, a.reference, a.designation
-                  FROM commande_details cd
-                  INNER JOIN article a ON cd.article_id = a.id
-                  WHERE cd.ID_Commande = :id";
-        
-        $stmt = $db->prepare($query);
-        $stmt->bindParam(':id', $id_commande);
-        $stmt->execute();
-        
-        $commande_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } else {
-        $error_message = "La commande demandée n'existe pas.";
+    $commande = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$commande) {
+        header('Location: index.php');
+        exit;
     }
+
+    // Récupérer les détails de la commande
+    $query = "SELECT cd.*, a.designation, a.reference 
+              FROM commande_details cd
+              LEFT JOIN article a ON cd.article_id = a.id
+              WHERE cd.ID_Commande = :id_commande";
+    $stmt = $db->prepare($query);
+    $stmt->bindParam(':id_commande', $id_commande);
+    $stmt->execute();
+    $commande_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $error_message = "Erreur lors de la récupération des données : " . $e->getMessage();
+    $error_message = "Erreur lors de la récupération des données: " . $e->getMessage();
 }
 
 // Process form submission
@@ -82,37 +83,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $numero_commande = $_POST['numero_commande'];
         $date_commande = $_POST['date_commande'];
         $date_livraison_prevue = $_POST['date_livraison_prevue'];
-        $id_fournisseur = $_POST['id_fournisseur'];
+        $id_client = $_POST['id_client'];
         $statut = $_POST['statut'];
         $montant_total_ht = $_POST['montant_total_ht'];
         $notes = $_POST['notes'] ?? '';
         
         // Update command in database
-        $query = "UPDATE commandes SET 
+        $query = "UPDATE commandes SET
                     Numero_Commande = :numero_commande, 
                     Date_Commande = :date_commande, 
-                    ID_Fournisseur = :id_fournisseur, 
+                    ID_Client = :id_client, 
                     Date_Livraison_Prevue = :date_livraison_prevue, 
                     Statut_Commande = :statut, 
                     Montant_Total_HT = :montant_total_ht, 
-                    Notes = :notes,
-                    Modifie_Par = :modifie_par,
-                    Date_Modification = NOW()
+                    Notes = :notes
                   WHERE ID_Commande = :id_commande";
         
         $stmt = $db->prepare($query);
         $stmt->bindParam(':numero_commande', $numero_commande);
         $stmt->bindParam(':date_commande', $date_commande);
-        $stmt->bindParam(':id_fournisseur', $id_fournisseur);
+        $stmt->bindParam(':id_client', $id_client);
         $stmt->bindParam(':date_livraison_prevue', $date_livraison_prevue);
         $stmt->bindParam(':statut', $statut);
         $stmt->bindParam(':montant_total_ht', $montant_total_ht);
         $stmt->bindParam(':notes', $notes);
-        $stmt->bindParam(':modifie_par', $currentUser['name']);
         $stmt->bindParam(':id_commande', $id_commande);
         $stmt->execute();
         
-        // Delete existing command details
+        // Supprimer les anciennes lignes de commande
         $query = "DELETE FROM commande_details WHERE ID_Commande = :id_commande";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':id_commande', $id_commande);
@@ -154,6 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bindParam(':quantite', $quantite);
                 $stmt->bindParam(':prix_unitaire', $prix_unitaire);
                 $stmt->bindParam(':total_ht', $total_ht);
+                
                 $stmt->execute();
             }
         }
@@ -165,19 +164,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $success_message = "La commande a été mise à jour avec succès!";
         
         // Refresh command data
-        $query = "SELECT c.* FROM commandes c WHERE c.ID_Commande = :id";
+        $query = "SELECT c.*, cl.id as client_id,
+                     CASE 
+                        WHEN cl.type_client_id = 1 THEN CONCAT(cl.prenom, ' ', cl.nom)
+                        ELSE CONCAT(cl.nom, ' - ', cl.raison_sociale)
+                     END AS Nom_Client
+                  FROM commandes c
+                  LEFT JOIN clients cl ON c.ID_Client = cl.id
+                  WHERE c.ID_Commande = :id_commande";
         $stmt = $db->prepare($query);
-        $stmt->bindParam(':id', $id_commande);
+        $stmt->bindParam(':id_commande', $id_commande);
         $stmt->execute();
         $commande = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         // Refresh command details
-        $query = "SELECT cd.*, a.reference, a.designation
+        $query = "SELECT cd.*, a.designation, a.reference 
                   FROM commande_details cd
-                  INNER JOIN article a ON cd.article_id = a.id
-                  WHERE cd.ID_Commande = :id";
+                  LEFT JOIN article a ON cd.article_id = a.id
+                  WHERE cd.ID_Commande = :id_commande";
         $stmt = $db->prepare($query);
-        $stmt->bindParam(':id', $id_commande);
+        $stmt->bindParam(':id_commande', $id_commande);
         $stmt->execute();
         $commande_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
@@ -188,13 +194,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch fournisseurs list
-$fournisseurs = [];
+// Fetch clients list
+$clients = [];
 try {
-    $query = "SELECT * FROM fournisseurs ORDER BY ID_Fournisseur";
+    $query = "SELECT id, 
+                     CASE 
+                        WHEN type_client_id = 1 THEN CONCAT(prenom, ' ', nom)
+                        ELSE CONCAT(nom, ' - ', raison_sociale)
+                     END AS Nom_Client
+              FROM clients 
+              ORDER BY Nom_Client";
     $stmt = $db->prepare($query);
     $stmt->execute();
-    $fournisseurs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $error = 'Database error: ' . $e->getMessage();
 }
@@ -213,27 +225,27 @@ try {
 include $root_path . '/includes/header.php';
 ?>
 
-<div class="flex h-screen bg-gray-100">
+<div class="flex h-screen bg-gray-50">
     <!-- Sidebar -->
     <?php include $root_path . '/includes/sidebar.php'; ?>
 
     <!-- Main Content -->
     <div class="flex-1 overflow-auto">
-        <header class="bg-white shadow">
-            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                <h1 class="text-3xl font-bold text-gray-900">Modifier la commande</h1>
+        <header class="bg-white shadow-sm sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-900">Modifier la commande</h1>
                 <div class="flex space-x-3">
-                    <button id="print-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <button id="print-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
                         <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
                         Imprimer
                     </button>
-                    <a href="index.php" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    <a href="index.php" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
                         <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
                         </svg>
-                        Retour aux commandes
+                        Retour
                     </a>
                 </div>
             </div>
@@ -241,290 +253,305 @@ include $root_path . '/includes/header.php';
 
         <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
             <?php if (isset($error_message)): ?>
-                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                    <strong class="font-bold">Erreur!</strong>
-                    <span class="block sm:inline"><?php echo $error_message; ?></span>
+                <div class="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-md shadow-sm" role="alert">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium"><?php echo $error_message; ?></p>
+                        </div>
+                    </div>
                 </div>
             <?php endif; ?>
 
             <?php if (isset($success_message)): ?>
-                <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-                    <strong class="font-bold">Succès!</strong>
-                    <span class="block sm:inline"><?php echo $success_message; ?></span>
+                <div class="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded-md shadow-sm" role="alert">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium"><?php echo $success_message; ?></p>
+                            <div class="mt-2 flex space-x-3">
+                                <a href="index.php" class="text-sm font-medium text-green-700 underline hover:text-green-600">Retour à la liste des commandes</a>
+                                <button id="print-success-btn" class="text-sm font-medium text-green-700 underline hover:text-green-600">Imprimer la commande</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             <?php endif; ?>
 
-            <?php if ($commande): ?>
-                <!-- Command Form -->
-                <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-                    <form id="commandeForm" method="POST" action="">
-                        <!-- Command Details Section -->
-                        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">Informations de la commande</h3>
-                            <p class="mt-1 max-w-2xl text-sm text-gray-500">Modifiez les détails de cette commande.</p>
-                        </div>
-                        
-                        <div class="px-4 py-5 sm:p-6">
-                            <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                                <!-- Command Number -->
-                                <div class="sm:col-span-2">
-                                    <label for="numero_commande" class="block text-sm font-medium text-gray-700">Numéro de commande</label>
-                                    <div class="mt-1">
-                                        <input type="text" name="numero_commande" id="numero_commande" 
-                                            value="<?php echo htmlspecialchars($commande['Numero_Commande']); ?>" 
-                                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md bg-gray-50" >
+            <!-- Command Form -->
+            <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+                <form id="commandeForm" method="POST" action="" class="space-y-6">
+                    <!-- Command Details Section -->
+                    <div class="px-4 py-5 sm:px-6 bg-gray-50">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Informations de la commande</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Modifiez les détails de cette commande.</p>
+                    </div>
+                    
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                            <!-- Command Number -->
+                            <div class="sm:col-span-2">
+                                <label for="numero_commande" class="block text-sm font-medium text-gray-700">Numéro de commande</label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-gray-500 sm:text-sm">#</span>
                                     </div>
+                                    <input type="text" name="numero_commande" id="numero_commande" 
+                                        value="<?php echo htmlspecialchars($commande['Numero_Commande']); ?>" 
+                                        class="pl-8 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md bg-gray-50" >
                                 </div>
+                            </div>
 
-                                <!-- Command Date -->
-                                <div class="sm:col-span-2">
-                                    <label for="date_commande" class="block text-sm font-medium text-gray-700">Date de commande</label>
-                                    <div class="mt-1">
-                                        <input type="date" name="date_commande" id="date_commande" 
-                                            value="<?php echo date('Y-m-d', strtotime($commande['Date_Commande'])); ?>" 
-                                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                            <!-- Command Date -->
+                            <div class="sm:col-span-2">
+                                <label for="date_commande" class="block text-sm font-medium text-gray-700">Date de commande</label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
                                     </div>
+                                    <input type="date" name="date_commande" id="date_commande" 
+                                        value="<?php echo htmlspecialchars($commande['Date_Commande']); ?>" 
+                                        class="pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
                                 </div>
+                            </div>
 
-                                <!-- Expected Delivery Date -->
-                                <div class="sm:col-span-2">
-                                    <label for="date_livraison_prevue" class="block text-sm font-medium text-gray-700">Date de livraison prévue</label>
-                                    <div class="mt-1">
-                                        <input type="date" name="date_livraison_prevue" id="date_livraison_prevue" 
-                                            value="<?php echo date('Y-m-d', strtotime($commande['Date_Livraison_Prevue'])); ?>" 
-                                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                            <!-- Expected Delivery Date -->
+                            <div class="sm:col-span-2">
+                                <label for="date_livraison_prevue" class="block text-sm font-medium text-gray-700">Date de livraison prévue</label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
                                     </div>
+                                    <input type="date" name="date_livraison_prevue" id="date_livraison_prevue" 
+                                        value="<?php echo htmlspecialchars($commande['Date_Livraison_Prevue']); ?>" 
+                                        class="pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
                                 </div>
+                            </div>
 
-                                <!-- Fournisseur Selection -->
-                                <div class="sm:col-span-3">
-                                    <label for="id_fournisseur" class="block text-sm font-medium text-gray-700">Fournisseur</label>
-                                    <div class="mt-1">
-                                        <select id="id_fournisseur" name="id_fournisseur" required
-                                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
-                                            <option value="">Sélectionner un fournisseur</option>
-                                            <?php foreach ($fournisseurs as $fournisseur): ?>
-                                                <option value="<?php echo $fournisseur['ID_Fournisseur']; ?>" <?php echo ($fournisseur['ID_Fournisseur'] == $commande['ID_Fournisseur']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($fournisseur['Code_Fournisseur']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
+                            <!-- Client Selection -->
+                            <div class="sm:col-span-3">
+                                <label for="id_client" class="block text-sm font-medium text-gray-700">Client</label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
                                     </div>
+                                    <select id="id_client" name="id_client" required
+                                        class="pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                        <option value="">Sélectionner un client</option>
+                                        <?php foreach ($clients as $client): ?>
+                                            <option value="<?php echo $client['id']; ?>" <?php echo ($client['id'] == $commande['client_id']) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($client['Nom_Client']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
+                            </div>
 
-                                <!-- Status Selection -->
-                                <div class="sm:col-span-3">
-                                    <label for="statut" class="block text-sm font-medium text-gray-700">Statut</label>
-                                    <div class="mt-1">
-                                        <select id="statut" name="statut" required
-                                            class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
-                                            <option value="En attente" <?php echo ($commande['Statut_Commande'] == 'En attente') ? 'selected' : ''; ?>>En attente</option>
-                                            <option value="En cours" <?php echo ($commande['Statut_Commande'] == 'En cours') ? 'selected' : ''; ?>>En cours</option>
-                                            <option value="Livrée" <?php echo ($commande['Statut_Commande'] == 'Livrée') ? 'selected' : ''; ?>>Livrée</option>
-                                            <option value="Annulée" <?php echo ($commande['Statut_Commande'] == 'Annulée') ? 'selected' : ''; ?>>Annulée</option>
-                                        </select>
+                            <!-- Status Selection -->
+                            <div class="sm:col-span-3">
+                                <label for="statut" class="block text-sm font-medium text-gray-700">Statut</label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
                                     </div>
+                                    <select id="statut" name="statut" required
+                                        class="pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                        <option value="En attente" <?php echo ($commande['Statut_Commande'] == 'En attente') ? 'selected' : ''; ?>>En attente</option>
+                                        <option value="Confirmée" <?php echo ($commande['Statut_Commande'] == 'Confirmée') ? 'selected' : ''; ?>>Confirmée</option>
+                                        <option value="Livrée" <?php echo ($commande['Statut_Commande'] == 'Livrée') ? 'selected' : ''; ?>>Livrée</option>
+                                        <option value="Annulée" <?php echo ($commande['Statut_Commande'] == 'Annulée') ? 'selected' : ''; ?>>Annulée</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Articles Section -->
-                        <div class="px-4 py-5 sm:px-6 border-t border-b border-gray-200">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">Articles commandés</h3>
-                            <p class="mt-1 max-w-2xl text-sm text-gray-500">Modifiez les articles de cette commande.</p>
+                    <!-- Articles Section -->
+                    <div class="px-4 py-5 sm:px-6 bg-gray-50 border-t border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="text-lg leading-6 font-medium text-gray-900">Articles commandés</h3>
+                                <p class="mt-1 max-w-2xl text-sm text-gray-500">Modifiez les articles de cette commande.</p>
+                            </div>
+                            <button type="button" id="add-article-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Ajouter un article
+                            </button>
                         </div>
+                    </div>
 
-                        <div class="px-4 py-5 sm:p-6">
-                            <div class="articles-container">
-                                <?php if (count($commande_details) > 0): ?>
-                                    <?php foreach ($commande_details as $index => $detail): ?>
-                                        <div class="article-row grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-12 mb-6 pb-6 border-b border-gray-200">
-                                            <div class="sm:col-span-5">
-                                                <label class="block text-sm font-medium text-gray-700">Article</label>
-                                                <select name="articles[<?php echo $index; ?>][id_article]" class="article-select mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required onchange="updateArticleInfo(this, <?php echo $index; ?>)">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Article</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix unitaire</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200 articles-container">
+                                    <?php if (empty($commande_details)): ?>
+                                        <!-- Article Template Row when no articles exist -->
+                                        <tr class="article-row">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <select name="articles[0][id_article]" class="article-select w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="updateArticleInfo(this, 0)">
                                                     <option value="">Sélectionner un article</option>
                                                     <?php foreach ($articles as $article): ?>
                                                         <option value="<?php echo $article['id']; ?>" 
                                                                 data-reference="<?php echo htmlspecialchars($article['reference']); ?>"
                                                                 data-designation="<?php echo htmlspecialchars($article['designation']); ?>"
                                                                 data-prix="<?php echo $article['prix_achat']; ?>"
-                                                                <?php echo ($article['id'] == $detail['article_id']) ? 'selected' : ''; ?>>
+                                                                >
                                                             <?php echo htmlspecialchars($article['designation']); ?>
                                                         </option>
                                                     <?php endforeach; ?>
                                                 </select>
-                                            </div>
-                                            
-                                            <div class="sm:col-span-2">
-                                                <label class="block text-sm font-medium text-gray-700">Référence</label>
-                                                <input type="text" name="articles[<?php echo $index; ?>][reference]" value="<?php echo htmlspecialchars($detail['reference']); ?>" class="mt-1 shadow-sm block w-full sm:text-sm border-gray-300 rounded-md bg-gray-50" readonly>
-                                            </div>
-                                            
-                                            <div class="sm:col-span-1">
-                                                <label class="block text-sm font-medium text-gray-700">Quantité</label>
-                                                <input type="number" name="articles[<?php echo $index; ?>][quantite]" min="1" value="<?php echo $detail['quantite']; ?>" class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required onchange="calculateRowTotal(<?php echo $index; ?>)">
-                                            </div>
-                                            
-                                            <div class="sm:col-span-2">
-                                                <label class="block text-sm font-medium text-gray-700">Prix unitaire</label>
-                                                <div class="mt-1 relative rounded-md shadow-sm">
-                                                    <input type="number" step="0.01" name="articles[<?php echo $index; ?>][prix_unitaire]" value="<?php echo $detail['prix_unitaire']; ?>" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pr-12 sm:text-sm border-gray-300 rounded-md" required onchange="calculateRowTotal(<?php echo $index; ?>)">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <input type="text" name="articles[0][reference]" class="w-full text-sm border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <input type="number" name="articles[0][quantite]" min="1" value="1" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="calculateRowTotal(0)">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="relative rounded-md shadow-sm">
+                                                    <input type="number" step="0.01" name="articles[0][prix_unitaire]" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="calculateRowTotal(0)">
                                                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                                         <span class="text-gray-500 sm:text-sm">DH</span>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            
-                                            <div class="sm:col-span-2">
-                                                <label class="block text-sm font-medium text-gray-700">Total</label>
-                                                <div class="mt-1 relative rounded-md shadow-sm">
-                                                    <input type="text" name="articles[<?php echo $index; ?>][total_ht]" value="<?php echo number_format($detail['montant_ht'], 2, '.', '') . ' DH'; ?>" class="bg-gray-50 block w-full pr-12 sm:text-sm border-gray-300 rounded-md" readonly>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="relative rounded-md shadow-sm">
+                                                <input type="text" name="articles[0][total_ht]" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
                                                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                                         <span class="text-gray-500 sm:text-sm">DH</span>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            
-                                            <div class="sm:col-span-1 flex items-end justify-center">
-                                                <button type="button" class="text-red-600 hover:text-red-900 focus:outline-none" onclick="removeArticleRow(this)">
-                                                    <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button type="button" class="text-red-600 hover:text-red-900 focus:outline-none transition-colors duration-200" onclick="removeArticleRow(this)">
+                                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                     </svg>
                                                 </button>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <!-- Empty Article Template Row -->
-                                    <div class="article-row grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-12 mb-6 pb-6 border-b border-gray-200">
-                                        <div class="sm:col-span-5">
-                                            <label class="block text-sm font-medium text-gray-700">Article</label>
-                                            <select name="articles[0][id_article]" class="article-select mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required onchange="updateArticleInfo(this, 0)">
-                                                <option value="">Sélectionner un article</option>
-                                                <?php foreach ($articles as $article): ?>
-                                                    <option value="<?php echo $article['id']; ?>" 
-                                                            data-reference="<?php echo htmlspecialchars($article['reference']); ?>"
-                                                            data-designation="<?php echo htmlspecialchars($article['designation']); ?>"
-                                                            data-prix="<?php echo $article['prix_achat']; ?>"
-                                                            >
-                                                        <?php echo htmlspecialchars($article['designation']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="sm:col-span-2">
-                                            <label class="block text-sm font-medium text-gray-700">Référence</label>
-                                            <input type="text" name="articles[0][reference]" class="mt-1 shadow-sm block w-full sm:text-sm border-gray-300 rounded-md bg-gray-50" readonly>
-                                        </div>
-                                        
-                                        <div class="sm:col-span-1">
-                                            <label class="block text-sm font-medium text-gray-700">Quantité</label>
-                                            <input type="number" name="articles[0][quantite]" min="1" value="1" class="mt-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required onchange="calculateRowTotal(0)">
-                                        </div>
-                                        
-                                        <div class="sm:col-span-2">
-                                            <label class="block text-sm font-medium text-gray-700">Prix unitaire</label>
-                                            <div class="mt-1 relative rounded-md shadow-sm">
-                                                <input type="number" step="0.01" name="articles[0][prix_unitaire]" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pr-12 sm:text-sm border-gray-300 rounded-md" required onchange="calculateRowTotal(0)">
-                                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                    <span class="text-gray-500 sm:text-sm">DH</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="sm:col-span-2">
-                                            <label class="block text-sm font-medium text-gray-700">Total</label>
-                                            <div class="mt-1 relative rounded-md shadow-sm">
-                                                <input type="text" name="articles[0][total_ht]" class="bg-gray-50 block w-full pr-12 sm:text-sm border-gray-300 rounded-md" readonly>
-                                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                    <span class="text-gray-500 sm:text-sm">DH</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="sm:col-span-1 flex items-end justify-center">
-                                            <button type="button" class="text-red-600 hover:text-red-900 focus:outline-none" onclick="removeArticleRow(this)">
-                                                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
+                                            </td>
+                                        </tr>
+                                    <?php else: ?>
+                                        <?php foreach ($commande_details as $index => $detail): ?>
+                                            <tr class="article-row">
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <select name="articles[<?php echo $index; ?>][id_article]" class="article-select w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="updateArticleInfo(this, <?php echo $index; ?>)">
+                                                        <option value="">Sélectionner un article</option>
+                                                        <?php foreach ($articles as $article): ?>
+                                                            <option value="<?php echo $article['id']; ?>" 
+                                                                    data-reference="<?php echo htmlspecialchars($article['reference']); ?>"
+                                                                    data-designation="<?php echo htmlspecialchars($article['designation']); ?>"
+                                                                    data-prix="<?php echo $article['prix_achat']; ?>"
+                                                                    <?php echo ($article['id'] == $detail['article_id']) ? 'selected' : ''; ?>>
+                                                                <?php echo htmlspecialchars($article['designation']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <input type="text" name="articles[<?php echo $index; ?>][reference]" value="<?php echo htmlspecialchars($detail['reference']); ?>" class="w-full text-sm border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <input type="number" name="articles[<?php echo $index; ?>][quantite]" min="1" value="<?php echo htmlspecialchars($detail['quantite']); ?>" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="calculateRowTotal(<?php echo $index; ?>)">
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <div class="relative rounded-md shadow-sm">
+                                                        <input type="number" step="0.01" name="articles[<?php echo $index; ?>][prix_unitaire]" value="<?php echo htmlspecialchars($detail['prix_unitaire']); ?>" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="calculateRowTotal(<?php echo $index; ?>)">
+                                                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                            <span class="text-gray-500 sm:text-sm">DH</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <div class="relative rounded-md shadow-sm">
+                                                        <input type="text" name="articles[<?php echo $index; ?>][total_ht]" value="<?php echo htmlspecialchars($detail['montant_ht']); ?>" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
+                                                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                            <span class="text-gray-500 sm:text-sm">DH</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <button type="button" class="text-red-600 hover:text-red-900 focus:outline-none transition-colors duration-200" onclick="removeArticleRow(this)">
+                                                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
 
-                            <div class="mt-4">
-                                <button type="button" id="add-article-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-                                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                    </svg>
-                                    Ajouter un article
-                                </button>
-                            </div>
-
-                            <!-- Totals Section -->
-                            <div class="mt-8 border-t border-gray-200 pt-8">
-                                <div class="flex flex-col sm:flex-row sm:justify-end">
-                                    <div class="w-full sm:w-1/3 bg-gray-50 p-4 rounded-md">
-                                        <div class="flex justify-between py-2 text-sm">
-                                            <span class="font-medium text-gray-500">Total HT:</span>
-                                            <span id="total_ht_display" class="font-medium"><?php echo number_format($commande['Montant_Total_HT'], 2, ',', ' '); ?> DH</span>
-                                            <input type="hidden" name="montant_total_ht" id="montant_total_ht" value="<?php echo $commande['Montant_Total_HT']; ?>">
-                                        </div>
-                                        <div class="flex justify-between py-2 text-sm">
-                                            <span class="font-medium text-gray-500">Total TVA:</span>
-                                            <span id="total_tva_display" class="font-medium">0,00 DH</span>
-                                            <input type="hidden" name="montant_total_tva" id="montant_total_tva" value="0">
-                                        </div>
-                                        <div class="flex justify-between py-2 text-base font-medium">
-                                            <span class="text-gray-900">Total TTC:</span>
-                                            <span id="total_ttc_display" class="text-indigo-600"><?php echo number_format($commande['Montant_Total_HT'] * 1.2, 2, ',', ' '); ?> DH</span>
-                                            <input type="hidden" name="montant_total_ttc" id="montant_total_ttc" value="<?php echo $commande['Montant_Total_HT'] * 1.2; ?>">
-                                        </div>
+                        <!-- Totals Section -->
+                        <div class="mt-8 border-t border-gray-200 pt-8">
+                            <div class="flex flex-col sm:flex-row sm:justify-end">
+                                <div class="w-full sm:w-1/3 bg-gray-50 p-4 rounded-md shadow-sm">
+                                    <div class="flex justify-between py-2 text-sm">
+                                        <span class="font-medium text-gray-500">Total HT:</span>
+                                        <span id="total_ht_display" class="font-medium"><?php echo number_format($commande['Montant_Total_HT'], 2, ',', ' '); ?> DH</span>
+                                        <input type="hidden" name="montant_total_ht" id="montant_total_ht" value="<?php echo $commande['Montant_Total_HT']; ?>">
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Notes Section -->
-                        <div class="px-4 py-5 sm:px-6 border-t border-gray-200">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">Notes et commentaires</h3>
-                            <div class="mt-2">
-                                <textarea name="notes" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Ajoutez des notes ou instructions spéciales pour cette commande..."><?php echo htmlspecialchars($commande['Notes']); ?></textarea>
-                            </div>
-                        </div>
-
-                        <!-- Form Actions -->
-                        <div class="px-4 py-3 bg-gray-50 text-right sm:px-6 flex justify-end space-x-3">
-                            <a href="index.php" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Annuler
-                            </a>
-                            <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                Mettre à jour la commande
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            <?php else: ?>
-                <div class="bg-white shadow overflow-hidden sm:rounded-lg p-6">
-                    <div class="text-center">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">Commande non trouvée</h3>
-                        <p class="mt-1 text-sm text-gray-500">La commande que vous cherchez n'existe pas ou a été supprimée.</p>
-                        <div class="mt-6">
-                            <a href="index.php" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-                                </svg>
-                                Retour à la liste des commandes
-                            </a>
+                    <!-- Notes Section -->
+                    <div class="px-4 py-5 sm:px-6 bg-gray-50 border-t border-gray-200">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Notes et commentaires</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Ajoutez des informations supplémentaires concernant cette commande.</p>
+                    </div>
+                    
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="mt-1">
+                            <textarea name="notes" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Ajoutez des notes ou instructions spéciales pour cette commande..."><?php echo htmlspecialchars($commande['Notes'] ?? ''); ?></textarea>
                         </div>
                     </div>
-                </div>
-            <?php endif; ?>
+
+                    <!-- Form Actions -->
+                    <div class="px-4 py-3 bg-gray-50 text-right sm:px-6 flex justify-end space-x-3 border-t border-gray-200">
+                        <a href="index.php" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                            Annuler
+                        </a>
+                        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Enregistrer les modifications
+                        </button>
+                    </div>
+                </form>
+            </div>
         </main>
     </div>
 </div>
@@ -532,30 +559,36 @@ include $root_path . '/includes/header.php';
 <!-- Print Template -->
 <div id="print-template" class="hidden">
     <div class="print-content p-8">
-        <div class="text-center mb-6">
+        <div class="text-center mb-8">
             <h1 class="text-2xl font-bold">Bon de Commande</h1>
-            <p id="print-numero-commande" class="text-lg"></p>
+            <p id="print-numero-commande" class="text-lg mt-2"></p>
         </div>
         
-        <div class="flex justify-between mb-6">
+        <div class="flex justify-between mb-8">
             <div>
-                <h2 class="font-bold">Fournisseur:</h2>
-                <p id="print-fournisseur"></p>
+                <h2 class="font-bold text-lg">Client:</h2>
+                <p id="print-client" class="mt-1"></p>
             </div>
             <div>
-                <p><strong>Date de commande:</strong> <span id="print-date-commande"></span></p>
-                <p><strong>Date de livraison prévue:</strong> <span id="print-date-livraison"></span></p>
+                <div class="mb-2">
+                    <span class="font-semibold">Date de commande:</span>
+                    <span id="print-date-commande" class="ml-2"></span>
+                </div>
+                <div>
+                    <span class="font-semibold">Date de livraison prévue:</span>
+                    <span id="print-date-livraison" class="ml-2"></span>
+                </div>
             </div>
         </div>
         
-        <table class="w-full mb-6 border-collapse">
+        <table class="w-full mb-8 border-collapse">
             <thead>
                 <tr class="bg-gray-200">
-                    <th class="border p-2 text-left">Référence</th>
-                    <th class="border p-2 text-left">Désignation</th>
-                    <th class="border p-2 text-right">Quantité</th>
-                    <th class="border p-2 text-right">Prix unitaire</th>
-                    <th class="border p-2 text-right">Total HT</th>
+                    <th class="border border-gray-400 p-2 text-left">Référence</th>
+                    <th class="border border-gray-400 p-2 text-left">Désignation</th>
+                    <th class="border border-gray-400 p-2 text-right">Quantité</th>
+                    <th class="border border-gray-400 p-2 text-right">Prix unitaire</th>
+                    <th class="border border-gray-400 p-2 text-right">Total HT</th>
                 </tr>
             </thead>
             <tbody id="print-articles">
@@ -563,34 +596,30 @@ include $root_path . '/includes/header.php';
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="4" class="border p-2 text-right font-bold">Total HT:</td>
-                    <td id="print-total-ht" class="border p-2 text-right"></td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="border p-2 text-right font-bold">TVA (20%):</td>
-                    <td id="print-total-tva" class="border p-2 text-right"></td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="border p-2 text-right font-bold">Total TTC:</td>
-                    <td id="print-total-ttc" class="border p-2 text-right"></td>
+                    <td colspan="4" class="border border-gray-400 p-2 text-right font-bold">Total HT:</td>
+                    <td id="print-total-ht" class="border border-gray-400 p-2 text-right"></td>
                 </tr>
             </tfoot>
         </table>
         
         <div class="mt-8">
             <h3 class="font-bold mb-2">Notes:</h3>
-            <p id="print-notes" class="border p-2"></p>
+            <p id="print-notes" class="border p-3 min-h-[60px] bg-gray-50"></p>
         </div>
         
-        <div class="mt-8 flex justify-between">
+        <div class="mt-12 flex justify-between">
             <div>
-                <p class="font-bold">Signature du responsable:</p>
-                <div class="h-16 w-32 border-b mt-12"></div>
+                <p class="font-bold mb-2">Signature du responsable:</p>
+                <div class="h-16 w-48 border-b border-gray-400 mt-12"></div>
             </div>
             <div>
-                <p class="font-bold">Cachet de l'entreprise:</p>
-                <div class="h-16 w-32 border mt-4"></div>
+                <p class="font-bold mb-2">Signature du client:</p>
+                <div class="h-16 w-48 border-b border-gray-400 mt-12"></div>
             </div>
+        </div>
+        
+        <div class="text-center text-sm text-gray-500 mt-8">
+            <p>Document généré le <?php echo date('d/m/Y à H:i'); ?></p>
         </div>
     </div>
 </div>
@@ -599,6 +628,8 @@ include $root_path . '/includes/header.php';
     // Function to update article information when an article is selected
     function updateArticleInfo(selectElement, rowIndex) {
         const selectedOption = selectElement.options[selectElement.selectedIndex];
+        if (!selectedOption.value) return;
+        
         const row = selectElement.closest('.article-row');
         
         // Get data from the selected option
@@ -609,7 +640,14 @@ include $root_path . '/includes/header.php';
         row.querySelector('input[name="articles[' + rowIndex + '][reference]"]').value = reference;
         
         // Update the price field
-        row.querySelector('input[name="articles[' + rowIndex + '][prix_unitaire]"]').value = prix;
+        const priceInput = row.querySelector('input[name="articles[' + rowIndex + '][prix_unitaire]"]');
+        priceInput.value = prix;
+        
+        // Add animation to highlight the updated fields
+        priceInput.classList.add('bg-yellow-50');
+        setTimeout(() => {
+            priceInput.classList.remove('bg-yellow-50');
+        }, 1000);
         
         // Calculate the row total
         calculateRowTotal(rowIndex);
@@ -629,6 +667,12 @@ include $root_path . '/includes/header.php';
         // Update the row total
         totalInput.value = total.toFixed(2) + ' DH';
         
+        // Add animation to highlight the updated total
+        totalInput.classList.add('bg-green-50');
+        setTimeout(() => {
+            totalInput.classList.remove('bg-green-50');
+        }, 1000);
+        
         // Recalculate the grand total
         calculateGrandTotal();
     }
@@ -644,30 +688,23 @@ include $root_path . '/includes/header.php';
             grandTotal += parseFloat(value) || 0;
         });
         
-        // Calculate TVA (20% by default)
-        const tvaRate = 0.20;
-        const totalTVA = grandTotal * tvaRate;
-        const totalTTC = grandTotal + totalTVA;
-        
         // Update the displayed totals with DH currency
         document.getElementById('total_ht_display').textContent = formatCurrency(grandTotal);
-        document.getElementById('total_tva_display').textContent = formatCurrency(totalTVA);
-        document.getElementById('total_ttc_display').textContent = formatCurrency(totalTTC);
         
         // Update hidden inputs for form submission
         document.getElementById('montant_total_ht').value = grandTotal.toFixed(2);
-        document.getElementById('montant_total_tva').value = totalTVA.toFixed(2);
-        document.getElementById('montant_total_ttc').value = totalTTC.toFixed(2);
     }
 
     // Function to add a new article row
     function addArticleRow() {
         const container = document.querySelector('.articles-container');
-        const templateRow = container.querySelector('.article-row').cloneNode(true);
-        const rowCount = container.querySelectorAll('.article-row').length;
+        const rows = container.querySelectorAll('.article-row');
+        const lastRow = rows[rows.length - 1];
+        const newRow = lastRow.cloneNode(true);
+        const rowCount = rows.length;
         
         // Update names and indices
-        const inputs = templateRow.querySelectorAll('input, select');
+        const inputs = newRow.querySelectorAll('input, select');
         inputs.forEach(input => {
             const name = input.getAttribute('name');
             if (name) {
@@ -676,6 +713,7 @@ include $root_path . '/includes/header.php';
             
             if (input.classList.contains('article-select')) {
                 input.setAttribute('onchange', 'updateArticleInfo(this, ' + rowCount + ')');
+                input.selectedIndex = 0; // Reset selection
             }
             
             if (input.getAttribute('onchange') && input.getAttribute('onchange').includes('calculateRowTotal')) {
@@ -694,25 +732,104 @@ include $root_path . '/includes/header.php';
             }
         });
         
-        // Reset select
-        const select = templateRow.querySelector('select');
-        select.selectedIndex = 0;
+        // Add the new row with a fade-in animation
+        newRow.classList.add('opacity-0');
+        container.appendChild(newRow);
         
-        container.appendChild(templateRow);
+        // Trigger reflow to enable animation
+        newRow.offsetHeight;
+        
+        // Fade in the new row
+        newRow.classList.add('transition-opacity', 'duration-300');
+        newRow.classList.remove('opacity-0');
+        
+        // Scroll to the new row
+        newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     // Function to remove an article row
     function removeArticleRow(button) {
         const rows = document.querySelectorAll('.article-row');
         if (rows.length > 1) {
-            button.closest('.article-row').remove();
-            calculateGrandTotal();
+            const row = button.closest('.article-row');
+            
+            // Add fade-out animation
+            row.classList.add('transition-opacity', 'duration-300', 'opacity-0');
+            
+            // Remove the row after animation completes
+            setTimeout(() => {
+                row.remove();
+                calculateGrandTotal();
+                
+                // Update indices for remaining rows
+                document.querySelectorAll('.article-row').forEach((row, index) => {
+                    const inputs = row.querySelectorAll('input, select');
+                    inputs.forEach(input => {
+                        const name = input.getAttribute('name');
+                        if (name) {
+                            input.setAttribute('name', name.replace(/\[\d+\]/, '[' + index + ']'));
+                        }
+                        
+                        if (input.classList.contains('article-select')) {
+                            input.setAttribute('onchange', 'updateArticleInfo(this, ' + index + ')');
+                        }
+                        
+                        if (input.getAttribute('onchange') && input.getAttribute('onchange').includes('calculateRowTotal')) {
+                            input.setAttribute('onchange', 'calculateRowTotal(' + index + ')');
+                        }
+                    });
+                });
+            }, 300);
+        } else {
+            // Show a toast notification if trying to remove the last row
+            showToast("Impossible de supprimer la dernière ligne", "warning");
         }
+    }
+
+    // Show toast notification
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 translate-y-full';
+        
+        // Set background color based on type
+        switch(type) {
+            case 'success':
+                toast.classList.add('bg-green-600');
+                break;
+            case 'error':
+                toast.classList.add('bg-red-600');
+                break;
+            case 'warning':
+                toast.classList.add('bg-yellow-500');
+                break;
+            default:
+                toast.classList.add('bg-blue-600');
+        }
+        
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        // Trigger reflow to enable animation
+        toast.offsetHeight;
+        
+        // Show toast
+        toast.classList.remove('translate-y-full');
+        
+        // Hide toast after 3 seconds
+        setTimeout(() => {
+            toast.classList.add('translate-y-full');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 3000);
     }
 
     // Format currency with DH symbol
     function formatCurrency(amount) {
-        return amount.toFixed(2).replace('.', ',') + ' DH';
+        return new Intl.NumberFormat('fr-MA', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount) + ' DH';
     }
 
     // Function to prepare and print the command
@@ -721,8 +838,8 @@ include $root_path . '/includes/header.php';
         const numeroCommande = document.getElementById('numero_commande').value;
         const dateCommande = document.getElementById('date_commande').value;
         const dateLivraison = document.getElementById('date_livraison_prevue').value;
-        const fournisseurSelect = document.getElementById('id_fournisseur');
-        const fournisseur = fournisseurSelect.options[fournisseurSelect.selectedIndex]?.text || '';
+        const clientSelect = document.getElementById('id_client');
+        const client = clientSelect.options[clientSelect.selectedIndex]?.text || '';
         const notes = document.querySelector('textarea[name="notes"]').value;
         
         // Format dates for display
@@ -731,20 +848,16 @@ include $root_path . '/includes/header.php';
         
         // Update print template with command info
         document.getElementById('print-numero-commande').textContent = 'N° ' + numeroCommande;
-        document.getElementById('print-fournisseur').textContent = fournisseur;
+        document.getElementById('print-client').textContent = client;
         document.getElementById('print-date-commande').textContent = formattedDateCommande;
         document.getElementById('print-date-livraison').textContent = formattedDateLivraison;
         document.getElementById('print-notes').textContent = notes || 'Aucune note';
         
         // Get totals
         const totalHT = document.getElementById('total_ht_display').textContent;
-        const totalTVA = document.getElementById('total_tva_display').textContent;
-        const totalTTC = document.getElementById('total_ttc_display').textContent;
         
         // Update totals in print template
         document.getElementById('print-total-ht').textContent = totalHT;
-        document.getElementById('print-total-tva').textContent = totalTVA;
-        document.getElementById('print-total-ttc').textContent = totalTTC;
         
         // Clear and populate articles table
         const articlesContainer = document.getElementById('print-articles');
@@ -762,11 +875,11 @@ include $root_path . '/includes/header.php';
                 // Create table row
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="border p-2">${reference}</td>
-                    <td class="border p-2">${articleName}</td>
-                    <td class="border p-2 text-right">${quantity}</td>
-                    <td class="border p-2 text-right">${price} DH</td>
-                    <td class="border p-2 text-right">${total}</td>
+                    <td class="border border-gray-400 p-2">${reference}</td>
+                    <td class="border border-gray-400 p-2">${articleName}</td>
+                    <td class="border border-gray-400 p-2 text-right">${quantity}</td>
+                    <td class="border border-gray-400 p-2 text-right">${price} DH</td>
+                    <td class="border border-gray-400 p-2 text-right">${total}</td>
                 `;
                 articlesContainer.appendChild(tr);
             }
@@ -782,23 +895,78 @@ include $root_path . '/includes/header.php';
                 <title>Bon de Commande - ${numeroCommande}</title>
                 <meta charset="UTF-8">
                 <style>
-                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    th, td { border: 1px solid #ddd; padding: 8px; }
-                    th { background-color: #f2f2f2; text-align: left; }
-                    .text-right { text-align: right; }
-                    .text-center { text-align: center; }
-                    .font-bold { font-weight: bold; }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 0; 
+                        padding: 20px;
+                        color: #333;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin-bottom: 20px; 
+                    }
+                    th, td { 
+                        border: 1px solid #ddd; 
+                        padding: 8px; 
+                    }
+                    th { 
+                        background-color: #f2f2f2; 
+                        text-align: left; 
+                    }
+                    .text-right { 
+                        text-align: right; 
+                    }
+                    .text-center { 
+                        text-align: center; 
+                    }
+                    .font-bold { 
+                        font-weight: bold; 
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 20px;
+                        border-bottom: 2px solid #333;
+                        padding-bottom: 10px;
+                    }
+                    .header h1 {
+                        margin-bottom: 5px;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #666;
+                    }
                     @media print {
-                        body { margin: 0; padding: 15px; }
-                        button { display: none; }
+                        body { 
+                            margin: 0; 
+                            padding: 15px; 
+                        }
+                        button { 
+                            display: none; 
+                        }
+                        @page {
+                            size: A4;
+                            margin: 1cm;
+                        }
                     }
                 </style>
             </head>
             <body>
+                <div class="header">
+                    <h1>Bon de Commande</h1>
+                    <p>${numeroCommande}</p>
+                </div>
                 ${printContent}
+                <div class="footer">
+                    <p>Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+                </div>
                 <div class="text-center" style="margin-top: 20px;">
-                    <button onclick="window.print(); setTimeout(function() { window.close(); }, 500);">Imprimer</button>
+                    <button onclick="window.print(); setTimeout(function() { window.close(); }, 500);" 
+                            style="padding: 10px 20px; background-color: #4f46e5; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        Imprimer
+                    </button>
                 </div>
             </body>
             </html>
@@ -808,45 +976,90 @@ include $root_path . '/includes/header.php';
 
     // Initialize event listeners when the DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
+        // Calculate initial grand total
+        calculateGrandTotal();
+        
         // Add click event for the add article button
         document.getElementById('add-article-btn').addEventListener('click', addArticleRow);
         
         // Add click event for the print button
         document.getElementById('print-btn').addEventListener('click', function(e) {
             e.preventDefault();
-            printCommand();
+            
+            // Check if form is valid before printing
+            if (validateForm(false)) {
+                printCommand();
+            } else {
+                showToast("Veuillez remplir correctement tous les champs obligatoires avant d'imprimer", "warning");
+            }
         });
         
-        // Calculate initial grand total
-        calculateGrandTotal();
+        // Add click event for the print success button if it exists
+        const printSuccessBtn = document.getElementById('print-success-btn');
+        if (printSuccessBtn) {
+            printSuccessBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                printCommand();
+            });
+        }
         
-        // Initialize row totals for existing rows
-        document.querySelectorAll('.article-row').forEach((row, index) => {
-            calculateRowTotal(index);
-        });
+        // Initialize tooltips for better UX
+        initTooltips();
     });
 
+    // Initialize tooltips
+    function initTooltips() {
+        const tooltips = document.querySelectorAll('[data-tooltip]');
+        tooltips.forEach(tooltip => {
+            tooltip.addEventListener('mouseenter', showTooltip);
+            tooltip.addEventListener('mouseleave', hideTooltip);
+        });
+    }
+
+    function showTooltip(e) {
+        const tooltipText = this.getAttribute('data-tooltip');
+        const tooltip = document.createElement('div');
+        tooltip.className = 'absolute z-10 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm tooltip';
+        tooltip.textContent = tooltipText;
+        tooltip.style.top = (this.offsetTop - 40) + 'px';
+        tooltip.style.left = (this.offsetLeft + this.offsetWidth / 2) + 'px';
+        tooltip.style.transform = 'translateX(-50%)';
+        document.body.appendChild(tooltip);
+        
+        // Store reference to the tooltip
+        this.tooltip = tooltip;
+    }
+
+    function hideTooltip() {
+        if (this.tooltip) {
+            this.tooltip.remove();
+            this.tooltip = null;
+        }
+    }
+
     // Validate form before submission
-    document.getElementById('commandeForm').addEventListener('submit', function(event) {
+    function validateForm(showErrors = true) {
         let isValid = true;
         let hasArticles = false;
         
-        // Check if supplier is selected
-        const fournisseur = document.getElementById('id_fournisseur');
-        if (!fournisseur.value) {
+        // Check if client is selected
+        const client = document.getElementById('id_client');
+        if (!client.value) {
             isValid = false;
-            fournisseur.classList.add('border-red-500');
-            const errorMsg = document.createElement('p');
-            errorMsg.className = 'mt-1 text-sm text-red-600';
-            errorMsg.textContent = 'Veuillez sélectionner un fournisseur';
-            
-            // Only add error message if it doesn't exist already
-            if (!fournisseur.parentNode.querySelector('.text-red-600')) {
-                fournisseur.parentNode.appendChild(errorMsg);
+            if (showErrors) {
+                client.classList.add('border-red-500', 'ring-1', 'ring-red-500');
+                const errorMsg = document.createElement('p');
+                errorMsg.className = 'mt-1 text-sm text-red-600';
+                errorMsg.textContent = 'Veuillez sélectionner un client';
+                
+                // Only add error message if it doesn't exist already
+                if (!client.parentNode.querySelector('.text-red-600')) {
+                    client.parentNode.appendChild(errorMsg);
+                }
             }
         } else {
-            fournisseur.classList.remove('border-red-500');
-            const errorMsg = fournisseur.parentNode.querySelector('.text-red-600');
+            client.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
+            const errorMsg = client.parentNode.querySelector('.text-red-600');
             if (errorMsg) {
                 errorMsg.remove();
             }
@@ -861,14 +1074,16 @@ include $root_path . '/includes/header.php';
         
         if (!hasArticles) {
             isValid = false;
-            const container = document.querySelector('.articles-container');
-            
-            // Only add error message if it doesn't exist already
-            if (!container.nextElementSibling || !container.nextElementSibling.classList.contains('text-red-600')) {
-                const errorMsg = document.createElement('p');
-                errorMsg.className = 'mt-2 text-sm text-red-600';
-                errorMsg.textContent = 'Veuillez sélectionner au moins un article';
-                container.parentNode.insertBefore(errorMsg, container.nextElementSibling);
+            if (showErrors) {
+                const container = document.querySelector('.articles-container');
+                
+                // Only add error message if it doesn't exist already
+                if (!container.nextElementSibling || !container.nextElementSibling.classList.contains('text-red-600')) {
+                    const errorMsg = document.createElement('p');
+                    errorMsg.className = 'mt-2 text-sm text-red-600';
+                    errorMsg.textContent = 'Veuillez sélectionner au moins un article';
+                    container.parentNode.insertBefore(errorMsg, container.nextElementSibling);
+                }
             }
         } else {
             const errorMsg = document.querySelector('.articles-container + .text-red-600');
@@ -886,17 +1101,19 @@ include $root_path . '/includes/header.php';
                 const quantityInput = row.querySelector('input[name*="[quantite]"]');
                 if (!quantityInput.value || parseInt(quantityInput.value) < 1) {
                     isValid = false;
-                    quantityInput.classList.add('border-red-500');
-                    
-                    // Only add error message if it doesn't exist already
-                    if (!quantityInput.parentNode.querySelector('.text-red-600')) {
-                        const errorMsg = document.createElement('p');
-                        errorMsg.className = 'mt-1 text-sm text-red-600';
-                        errorMsg.textContent = 'Quantité invalide';
-                        quantityInput.parentNode.appendChild(errorMsg);
+                    if (showErrors) {
+                        quantityInput.classList.add('border-red-500', 'ring-1', 'ring-red-500');
+                        
+                        // Only add error message if it doesn't exist already
+                        if (!quantityInput.parentNode.querySelector('.text-red-600')) {
+                            const errorMsg = document.createElement('p');
+                            errorMsg.className = 'mt-1 text-sm text-red-600';
+                            errorMsg.textContent = 'Quantité invalide';
+                            quantityInput.parentNode.appendChild(errorMsg);
+                        }
                     }
                 } else {
-                    quantityInput.classList.remove('border-red-500');
+                    quantityInput.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
                     const errorMsg = quantityInput.parentNode.querySelector('.text-red-600');
                     if (errorMsg) {
                         errorMsg.remove();
@@ -907,17 +1124,19 @@ include $root_path . '/includes/header.php';
                 const priceInput = row.querySelector('input[name*="[prix_unitaire]"]');
                 if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
                     isValid = false;
-                    priceInput.classList.add('border-red-500');
-                    
-                    // Only add error message if it doesn't exist already
-                    if (!priceInput.parentNode.querySelector('.text-red-600')) {
-                        const errorMsg = document.createElement('p');
-                        errorMsg.className = 'mt-1 text-sm text-red-600';
-                        errorMsg.textContent = 'Prix invalide';
-                        priceInput.parentNode.appendChild(errorMsg);
+                    if (showErrors) {
+                        priceInput.classList.add('border-red-500', 'ring-1', 'ring-red-500');
+                        
+                        // Only add error message if it doesn't exist already
+                        if (!priceInput.parentNode.querySelector('.text-red-600')) {
+                            const errorMsg = document.createElement('p');
+                            errorMsg.className = 'mt-1 text-sm text-red-600';
+                            errorMsg.textContent = 'Prix invalide';
+                            priceInput.parentNode.appendChild(errorMsg);
+                        }
                     }
                 } else {
-                    priceInput.classList.remove('border-red-500');
+                    priceInput.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
                     const errorMsg = priceInput.parentNode.querySelector('.text-red-600');
                     if (errorMsg) {
                         errorMsg.remove();
@@ -926,17 +1145,38 @@ include $root_path . '/includes/header.php';
             }
         });
         
-        if (!isValid) {
+        return isValid;
+    }
+
+    // Submit form handler
+    document.getElementById('commandeForm').addEventListener('submit', function(event) {
+        if (!validateForm(true)) {
             event.preventDefault();
+            
+            // Show error toast
+            showToast("Veuillez corriger les erreurs dans le formulaire", "error");
             
             // Scroll to the first error
             const firstError = document.querySelector('.border-red-500');
             if (firstError) {
                 firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
+        } else {
+            // Show loading indicator
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Enregistrement...
+            `;
         }
     });
 </script>
 
 <?php include $root_path . '/includes/footer.php'; ?>
 
+                                                    
