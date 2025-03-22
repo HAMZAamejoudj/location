@@ -85,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $date_livraison_prevue = $_POST['date_livraison_prevue'];
         $id_client = $_POST['id_client'];
         $statut = $_POST['statut'];
+        $ancien_statut = $commande['Statut_Commande']; // Stocker l'ancien statut pour vérification
         $montant_total_ht = $_POST['montant_total_ht'];
         $notes = $_POST['notes'] ?? '';
         
@@ -157,11 +158,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
+        // Générer automatiquement une facture si le statut est changé à "Livrée"
+        if ($statut === "Livrée" && $ancien_statut !== "Livrée") {
+            // Vérifier si une facture existe déjà pour cette commande
+            $query = "SELECT COUNT(*) FROM factures WHERE ID_Commande = :id_commande";
+            $stmt = $db->prepare($query);
+            $stmt->bindParam(':id_commande', $id_commande);
+            $stmt->execute();
+            $facture_existe = $stmt->fetchColumn() > 0;
+            
+            if (!$facture_existe) {
+                // Générer un numéro de facture unique
+                $numero_facture = 'FAC-' . date('Ymd') . '-' . rand(1000, 9999);
+                $date_facture = date('Y-m-d'); // Date du jour
+                $statut_facture = 'Émise';
+                
+                // Insérer la facture dans la table factures
+                $query = "INSERT INTO factures (
+                            Numero_Facture, 
+                            Date_Facture, 
+                            ID_Client, 
+                            ID_Commande, 
+                            Montant_Total_HT, 
+                            Statut_Facture, 
+                            Notes, 
+                            Created_At
+                          ) VALUES (
+                            :numero_facture, 
+                            :date_facture, 
+                            :id_client, 
+                            :id_commande, 
+                            :montant_total_ht, 
+                            :statut_facture, 
+                            :notes, 
+                            NOW()
+                          )";
+                
+                $stmt = $db->prepare($query);
+                $stmt->bindParam(':numero_facture', $numero_facture);
+                $stmt->bindParam(':date_facture', $date_facture);
+                $stmt->bindParam(':id_client', $id_client);
+                $stmt->bindParam(':id_commande', $id_commande);
+                $stmt->bindParam(':montant_total_ht', $montant_total_ht);
+                $stmt->bindParam(':statut_facture', $statut_facture);
+                $stmt->bindParam(':notes', $notes);
+                $stmt->execute();
+                
+                $id_facture = $db->lastInsertId();
+                
+                // Copier les détails de la commande dans la table facture_details
+                if (isset($_POST['articles']) && is_array($_POST['articles'])) {
+                    foreach ($_POST['articles'] as $article) {
+                        // Skip empty rows
+                        if (empty($article['id_article'])) {
+                            continue;
+                        }
+                        
+                        $id_article = $article['id_article'];
+                        $quantite = $article['quantite'];
+                        $prix_unitaire = $article['prix_unitaire'];
+                        $total_ht = $quantite * $prix_unitaire;
+                        
+                        // Insérer les détails de la facture
+                        $query = "INSERT INTO facture_details (
+                                    ID_Facture, 
+                                    article_id, 
+                                    quantite, 
+                                    prix_unitaire, 
+                                    montant_ht
+                                  ) VALUES (
+                                    :id_facture,
+                                    :id_article,
+                                    :quantite,
+                                    :prix_unitaire,
+                                    :total_ht
+                                  )";
+                        
+                        $stmt = $db->prepare($query);
+                        $stmt->bindParam(':id_facture', $id_facture);
+                        $stmt->bindParam(':id_article', $id_article);
+                        $stmt->bindParam(':quantite', $quantite);
+                        $stmt->bindParam(':prix_unitaire', $prix_unitaire);
+                        $stmt->bindParam(':total_ht', $total_ht);
+                        
+                        $stmt->execute();
+                    }
+                }
+                
+                // Ajouter un message de succès supplémentaire pour la facture
+                $facture_success = "Une facture a été automatiquement générée avec le numéro $numero_facture";
+            }
+        }
+        
         // Commit transaction
         $db->commit();
         
         // Set success message
         $success_message = "La commande a été mise à jour avec succès!";
+        if (isset($facture_success)) {
+            $success_message .= "<br>" . $facture_success;
+        }
         
         // Refresh command data
         $query = "SELECT c.*, cl.id as client_id,
@@ -220,6 +316,18 @@ try {
     $articles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $error = 'Database error: ' . $e->getMessage();
+}
+
+// Vérifier si une facture existe déjà pour cette commande
+$facture_existante = false;
+try {
+    $query = "SELECT COUNT(*) FROM factures WHERE ID_Commande = :id_commande";
+    $stmt = $db->prepare($query);
+    $stmt->bindParam(':id_commande', $id_commande);
+    $stmt->execute();
+    $facture_existante = $stmt->fetchColumn() > 0;
+} catch (PDOException $e) {
+    // Ignorer l'erreur
 }
 
 include $root_path . '/includes/header.php';
@@ -378,6 +486,11 @@ include $root_path . '/includes/header.php';
                                         <option value="Annulée" <?php echo ($commande['Statut_Commande'] == 'Annulée') ? 'selected' : ''; ?>>Annulée</option>
                                     </select>
                                 </div>
+                                <?php if ($facture_existante): ?>
+                                    <p class="mt-1 text-sm text-blue-600">Une facture a déjà été générée pour cette commande.</p>
+                                <?php else: ?>
+                                    <p class="mt-1 text-sm text-gray-500" id="statut-info">Sélectionner "Livrée" générera automatiquement une facture.</p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -895,7 +1008,7 @@ include $root_path . '/includes/header.php';
                 <title>Bon de Commande - ${numeroCommande}</title>
                 <meta charset="UTF-8">
                 <style>
-                    body { 
+                                        body { 
                         font-family: Arial, sans-serif; 
                         margin: 0; 
                         padding: 20px;
@@ -1000,6 +1113,28 @@ include $root_path . '/includes/header.php';
             printSuccessBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 printCommand();
+            });
+        }
+        
+        // Add change event for status select to update info text
+        const statutSelect = document.getElementById('statut');
+        const statutInfo = document.getElementById('statut-info');
+        
+        if (statutSelect && statutInfo) {
+            statutSelect.addEventListener('change', function() {
+                if (this.value === 'Livrée') {
+                    <?php if (!$facture_existante): ?>
+                        statutInfo.textContent = "Une facture sera automatiquement générée";
+                        statutInfo.classList.remove('text-gray-500');
+                        statutInfo.classList.add('text-blue-600', 'font-medium');
+                    <?php endif; ?>
+                } else {
+                    <?php if (!$facture_existante): ?>
+                        statutInfo.textContent = "Sélectionner \"Livrée\" générera automatiquement une facture";
+                        statutInfo.classList.remove('text-blue-600', 'font-medium');
+                        statutInfo.classList.add('text-gray-500');
+                    <?php endif; ?>
+                }
             });
         }
         
@@ -1173,10 +1308,17 @@ include $root_path . '/includes/header.php';
                 </svg>
                 Enregistrement...
             `;
+            
+            // Inform user if they're changing status to "Livrée"
+            const statutSelect = document.getElementById('statut');
+            if (statutSelect && statutSelect.value === 'Livrée' && statutSelect.value !== '<?php echo $commande['Statut_Commande']; ?>') {
+                <?php if (!$facture_existante): ?>
+                    showToast("Une facture sera automatiquement générée", "info");
+                <?php endif; ?>
+            }
         }
     });
 </script>
 
 <?php include $root_path . '/includes/footer.php'; ?>
 
-                                                    

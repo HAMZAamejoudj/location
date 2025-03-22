@@ -116,11 +116,97 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
+        // Générer automatiquement une facture si le statut est "Livrée"
+        if ($statut === "Livrée") {
+            // Générer un numéro de facture unique
+            $numero_facture = 'FAC-' . date('Ymd') . '-' . rand(1000, 9999);
+            $date_facture = date('Y-m-d'); // Date du jour
+            $statut_facture = 'Émise';
+            
+            // Insérer la facture dans la table factures
+            $query = "INSERT INTO factures (
+                        Numero_Facture, 
+                        Date_Facture, 
+                        ID_Client, 
+                        ID_Commande, 
+                        Montant_Total_HT, 
+                        Statut_Facture, 
+                        Notes, 
+                        Created_At
+                      ) VALUES (
+                        :numero_facture, 
+                        :date_facture, 
+                        :id_client, 
+                        :id_commande, 
+                        :montant_total_ht, 
+                        :statut_facture, 
+                        :notes, 
+                        NOW()
+                      )";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bindParam(':numero_facture', $numero_facture);
+            $stmt->bindParam(':date_facture', $date_facture);
+            $stmt->bindParam(':id_client', $id_client);
+            $stmt->bindParam(':id_commande', $id_commande);
+            $stmt->bindParam(':montant_total_ht', $montant_total_ht);
+            $stmt->bindParam(':statut_facture', $statut_facture);
+            $stmt->bindParam(':notes', $notes);
+            $stmt->execute();
+            
+            $id_facture = $db->lastInsertId();
+            
+            // Copier les détails de la commande dans la table facture_details
+            if (isset($_POST['articles']) && is_array($_POST['articles'])) {
+                foreach ($_POST['articles'] as $article) {
+                    // Skip empty rows
+                    if (empty($article['id_article'])) {
+                        continue;
+                    }
+                    
+                    $id_article = $article['id_article'];
+                    $quantite = $article['quantite'];
+                    $prix_unitaire = $article['prix_unitaire'];
+                    $total_ht = $quantite * $prix_unitaire;
+                    
+                    // Insérer les détails de la facture
+                    $query = "INSERT INTO facture_details (
+                                ID_Facture, 
+                                article_id, 
+                                quantite, 
+                                prix_unitaire, 
+                                montant_ht
+                              ) VALUES (
+                                :id_facture,
+                                :id_article,
+                                :quantite,
+                                :prix_unitaire,
+                                :total_ht
+                              )";
+                    
+                    $stmt = $db->prepare($query);
+                    $stmt->bindParam(':id_facture', $id_facture);
+                    $stmt->bindParam(':id_article', $id_article);
+                    $stmt->bindParam(':quantite', $quantite);
+                    $stmt->bindParam(':prix_unitaire', $prix_unitaire);
+                    $stmt->bindParam(':total_ht', $total_ht);
+                    
+                    $stmt->execute();
+                }
+            }
+            
+            // Ajouter un message de succès supplémentaire pour la facture
+            $facture_success = "Une facture a été automatiquement générée avec le numéro $numero_facture";
+        }
+        
         // Commit transaction
         $db->commit();
         
         // Set success message
         $success_message = "La commande a été créée avec succès!";
+        if (isset($facture_success)) {
+            $success_message .= "<br>" . $facture_success;
+        }
         
     } catch (PDOException $e) {
         // Rollback transaction on error
@@ -312,6 +398,7 @@ include $root_path . '/includes/header.php';
                                             <option value="Annulée">Annulée</option>
                                         </select>
                                     </div>
+                                    <p class="mt-1 text-sm text-gray-500">Sélectionner "Livrée" générera automatiquement une facture.</p>
                                 </div>
                             </div>
                         </div>
@@ -378,7 +465,7 @@ include $root_path . '/includes/header.php';
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="relative rounded-md shadow-sm">
-                                                    <input type="text" name="articles[0][total_ht]" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
+                                                <input type="text" name="articles[0][total_ht]" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
                                                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                                         <span class="text-gray-500 sm:text-sm">DH</span>
                                                     </div>
@@ -576,8 +663,6 @@ include $root_path . '/includes/header.php';
             const value = input.value.replace(' DH', '');
             grandTotal += parseFloat(value) || 0;
         });
-        
-        // Calculate TVA (20% by default)
         
         // Update the displayed totals with DH currency
         document.getElementById('total_ht_display').textContent = formatCurrency(grandTotal);
@@ -894,6 +979,21 @@ include $root_path . '/includes/header.php';
         
         // Initialize tooltips for better UX
         initTooltips();
+        
+        // Add event listener for status change to show info about automatic invoice generation
+        const statutSelect = document.getElementById('statut');
+        if (statutSelect) {
+            statutSelect.addEventListener('change', function() {
+                const infoText = this.parentNode.nextElementSibling;
+                if (this.value === 'Livrée') {
+                    infoText.textContent = 'Une facture sera automatiquement générée pour cette commande.';
+                    infoText.classList.add('text-indigo-600', 'font-medium');
+                } else {
+                    infoText.textContent = 'Sélectionner "Livrée" générera automatiquement une facture.';
+                    infoText.classList.remove('text-indigo-600', 'font-medium');
+                }
+            });
+        }
     });
 
     // Initialize tooltips
@@ -1062,8 +1162,15 @@ include $root_path . '/includes/header.php';
                 </svg>
                 Enregistrement...
             `;
+            
+            // Inform user if they're creating a command with "Livrée" status
+            const statutSelect = document.getElementById('statut');
+            if (statutSelect && statutSelect.value === 'Livrée') {
+                showToast("Une facture sera automatiquement générée", "info");
+            }
         }
     });
 </script>
 
 <?php include $root_path . '/includes/footer.php'; ?>
+

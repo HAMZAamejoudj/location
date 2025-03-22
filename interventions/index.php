@@ -419,7 +419,7 @@ try {
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                                             <?php if ($intervention['commande_id']): ?>
-                                                <a href="../commandes/view.php?id=<?php echo $intervention['commande_id']; ?>" class="text-blue-600 hover:text-blue-900">
+                                                <a href="../orders/view.php?id=<?php echo $intervention['commande_id']; ?>" class="text-blue-600 hover:text-blue-900">
                                                     Commande #<?php echo $intervention['commande_id']; ?>
                                                 </a>
                                             <?php else: ?>
@@ -1318,7 +1318,7 @@ function viewIntervention(id) {
                                 <p class="font-medium">Commande #${intervention.commande_id}</p>
                                 <p class="text-sm text-gray-500">Date: ${intervention.commande_date ? formatDate(intervention.commande_date) : 'Non spécifiée'}</p>
                             </div>
-                            <a href="../commandes/view.php?id=${intervention.commande_id}" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors">
+                            <a href="../orders/view.php?id=${intervention.commande_id}" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors">
                                 Voir la commande
                             </a>
                         </div>
@@ -1457,7 +1457,7 @@ function editIntervention(id) {
                     commandeInfo.innerHTML = `
                         <div class="flex items-center">
                             <span class="text-sm">Commande #${intervention.commande_id} associée</span>
-                            <a href="../commandes/view.php?id=${intervention.commande_id}" class="ml-2 text-xs text-blue-600 hover:text-blue-800">Voir</a>
+                            <a href="../orders/view.php?id=${intervention.commande_id}" class="ml-2 text-xs text-blue-600 hover:text-blue-800">Voir</a>
                         </div>
                     `;
                 } else {
