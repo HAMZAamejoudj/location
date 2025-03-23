@@ -97,7 +97,7 @@ include $root_path . '/includes/header.php';
                                     $database = new Database();
                                     $db = $database->getConnection();
                                     
-                                    $query = "SELECT COUNT(*) as total FROM article";
+                                    $query = "SELECT COUNT(*) as total FROM articles";
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -120,7 +120,7 @@ include $root_path . '/includes/header.php';
                             <h2 class="text-gray-600 text-sm font-medium">Stock Faible</h2>
                             <p class="text-2xl font-semibold text-gray-800">
                                 <?php
-                                    $query = "SELECT COUNT(*) as total FROM article WHERE quantite_stock <= seuil_alerte";
+                                    $query = "SELECT COUNT(*) as total FROM articles WHERE quantite_stock <= seuil_alerte";
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -143,7 +143,7 @@ include $root_path . '/includes/header.php';
                             <h2 class="text-gray-600 text-sm font-medium">Valeur Stock</h2>
                             <p class="text-2xl font-semibold text-gray-800">
                                 <?php
-                                    $query = "SELECT SUM(prix_achat * quantite_stock) as total FROM article";
+                                    $query = "SELECT SUM(prix_achat * quantite_stock) as total FROM articles";
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -166,7 +166,7 @@ include $root_path . '/includes/header.php';
                             <h2 class="text-gray-600 text-sm font-medium">Ajoutés (30j)</h2>
                             <p class="text-2xl font-semibold text-gray-800">
                                 <?php
-                                    $query = "SELECT COUNT(*) as total FROM article WHERE date_creation >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)";
+                                    $query = "SELECT COUNT(*) as total FROM articles WHERE date_creation >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)";
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -257,7 +257,7 @@ include $root_path . '/includes/header.php';
                 $where_clause = !empty($where_conditions) ? "WHERE " . implode(" AND ", $where_conditions) : "";
                 
                 // Récupérer le nombre total d'articles
-                $count_query = "SELECT COUNT(*) as total FROM article a LEFT JOIN categorie c ON a.categorie = c.id $where_clause";
+                $count_query = "SELECT COUNT(*) as total FROM articles a LEFT JOIN categorie c ON a.categorie_id = c.id $where_clause";
                 $count_stmt = $db->prepare($count_query);
                 foreach ($params as $key => $value) {
                     $count_stmt->bindValue($key, $value);
@@ -268,11 +268,11 @@ include $root_path . '/includes/header.php';
                 $total_pages = ceil($total_articles / $articles_per_page);
                 
                 // Récupérer les articles pour la page courante
-                $query = "SELECT a.id, a.reference, a.designation, a.categorie, c.nom as nom_cat, 
+                $query = "SELECT a.id, a.reference, a.designation, a.categorie_id, c.nom as nom_cat, 
                           a.quantite_stock, a.seuil_alerte, a.prix_achat, a.prix_vente_ht, 
                           a.emplacement, a.date_creation, a.derniere_mise_a_jour 
-                          FROM article a 
-                          LEFT JOIN categorie c ON a.categorie = c.id 
+                          FROM articles a 
+                          LEFT JOIN categorie c ON a.categorie_id = c.id 
                           $where_clause
                           ORDER BY a.reference DESC
                           LIMIT :limit OFFSET :offset";

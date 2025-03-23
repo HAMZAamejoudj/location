@@ -40,7 +40,7 @@ $article_id = intval($_GET['id']);
 
 // Récupérer les informations de l'article
 try {
-    $query = "SELECT * FROM article WHERE id = :id";
+    $query = "SELECT * FROM articles WHERE id = :id";
     $stmt = $db->prepare($query);
     $stmt->bindParam(':id', $article_id);
     $stmt->execute();
@@ -121,10 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $prix_vente_ht = $prix_achat * (1 + $marge / 100);
 
             // Préparer la requête de mise à jour
-            $query = "UPDATE article SET 
+            $query = "UPDATE articles SET 
                         reference = :reference, 
                         designation = :designation, 
-                        categorie = :categorie, 
+                        categorie_id = :categorie, 
                         emplacement = :emplacement, 
                         prix_achat = :prix_achat, 
                         marge_benifice = :marge_benifice,  
@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "L'article a été mis à jour avec succès!";
                 
                 // Récupérer les informations mises à jour de l'article
-                $query = "SELECT * FROM article WHERE id = :id";
+                $query = "SELECT * FROM articles WHERE id = :id";
                 $stmt = $db->prepare($query);
                 $stmt->bindParam(':id', $article_id);
                 $stmt->execute();

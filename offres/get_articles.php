@@ -24,12 +24,12 @@ try {
     
     // Construire la requête en fonction de la catégorie
     // Correction: utiliser prix_vente_ht au lieu de prix_vente
-    $query = "SELECT id, reference, designation, prix_vente_ht as prix_vente FROM article WHERE 1=1";
+    $query = "SELECT id, reference, designation, prix_vente_ht as prix_vente FROM articles WHERE 1=1";
     $params = [];
     
     if ($categorie_id) {
         // Correction: utiliser categorie au lieu de categorie_id (selon votre structure de table)
-        $query .= " AND categorie = :categorie_id";
+        $query .= " AND categorie_id = :categorie_id";
         $params[':categorie_id'] = $categorie_id;
     }
     

@@ -49,7 +49,7 @@ try {
     // Correction: utiliser prix_vente_ht au lieu de prix_vente
     $queryArticles = "SELECT a.id, a.reference, a.designation, a.prix_vente_ht as prix_vente, oa.remise_specifique 
                      FROM offres_articles oa
-                     JOIN article a ON oa.article_id = a.id
+                     JOIN articles a ON oa.article_id = a.id
                      WHERE oa.offre_id = :id
                      ORDER BY a.reference";
     $stmtArticles = $db->prepare($queryArticles);

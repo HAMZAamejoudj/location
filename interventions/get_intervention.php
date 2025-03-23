@@ -30,7 +30,8 @@ try {
     $db = $database->getConnection();
     
     // Récupérer les détails de l'intervention
-    $query = "SELECT i.*, 
+    $query = "SELECT i.*, DATE(i.date_debut) AS date_debut,
+                 DATE(i.date_fin) AS date_fin,
               v.marque, v.modele, v.immatriculation, 
               CONCAT(c.nom, ' ', c.prenom) AS client, c.id AS client_id,
               CONCAT(t.nom, ' ', t.prenom) AS technicien, t.specialite AS technicien_specialite,

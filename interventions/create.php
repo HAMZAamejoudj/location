@@ -127,12 +127,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     if ($client_id) {
                         // Créer la commande
-                        $query = "INSERT INTO commandes (ID_client , vehicule_id, date_creation, Statut_Commande, intervention_id) 
-                                  VALUES (:client_id, :vehicule_id, NOW(), 'En attente', :intervention_id)";
+                        $numero_commande = 'CMD-' . date('YmdHis') . '-' . rand(1000, 9999);
+                        // Créer la commande
+                        $query = "INSERT INTO commandes (ID_client ,Numero_Commande, vehicule_id, date_creation, Statut_Commande, user_id, intervention_id) 
+                                  VALUES (:client_id, :numero_commande ,:vehicule_id, NOW(), 'En attente', :user_id, :intervention_id)";
                         $stmt = $db->prepare($query);
                         $stmt->bindParam(':client_id', $client_id);
+                        $stmt->bindParam(':numero_commande', $numero_commande);
                         $stmt->bindParam(':vehicule_id', $vehicule_id);
-                     //   $stmt->bindParam(':user_id', $_SESSION['user_id']);
+                        $stmt->bindParam(':user_id', $_SESSION['user_id']);
                         $stmt->bindParam(':intervention_id', $intervention_id);
                         
                         if ($stmt->execute()) {

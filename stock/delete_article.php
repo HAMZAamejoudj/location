@@ -43,7 +43,7 @@ $db = $database->getConnection();
 
 // Récupérer les informations de l'article avant suppression
 try {
-    $query = "SELECT * FROM article WHERE id = :id";
+    $query = "SELECT * FROM articles WHERE id = :id";
     $stmt = $db->prepare($query);
     $stmt->bindParam(':id', $article_id);
     $stmt->execute();

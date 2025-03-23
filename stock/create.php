@@ -96,10 +96,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $prix_vente_ht = $prix_achat * (1 + $marge / 100);
 
             // Préparer la requête d'insertion
-            $query = "INSERT INTO article (
+            $query = "INSERT INTO articles (
                         reference, 
                         designation, 
-                        categorie, 
+                        categorie_id, 
                         emplacement, 
                         prix_achat, 
                         marge_benifice,  

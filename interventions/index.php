@@ -128,7 +128,8 @@ try {
     $totalPages = ceil($totalInterventions / $interventionsParPage);
 
     // Requête paginée avec filtres
-    $query = "SELECT i.id, i.date_creation, i.date_prevue, i.date_debut, i.date_fin, 
+    $query = "SELECT i.id, i.date_creation, i.date_prevue, DATE(i.date_debut) AS date_debut,
+                 DATE(i.date_fin) AS date_fin, 
                     i.description, i.diagnostique, i.kilometrage, i.statut, i.commentaire, i.commande_id,
                     v.immatriculation, CONCAT(v.marque, ' ', v.modele) AS vehicule_info,
                     CONCAT(c.nom, ' ', c.prenom) AS client, c.id AS client_id,
@@ -419,7 +420,7 @@ try {
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                                             <?php if ($intervention['commande_id']): ?>
-                                                <a href="../commandes/view.php?id=<?php echo $intervention['commande_id']; ?>" class="text-blue-600 hover:text-blue-900">
+                                                <a href="../orders/view.php?id=<?php echo $intervention['commande_id']; ?>" class="text-blue-600 hover:text-blue-900">
                                                     Commande #<?php echo $intervention['commande_id']; ?>
                                                 </a>
                                             <?php else: ?>
@@ -678,7 +679,7 @@ try {
                             <tfoot class="bg-gray-50">
                                 <tr>
                                     <td colspan="6" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
-                                    <td class="px-4 py-3 font-medium text-gray-900" id="total_ht">0.00 €</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900" id="total_ht">0.00 DH</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -880,7 +881,7 @@ try {
                             <tfoot class="bg-gray-50">
                                 <tr>
                                     <td colspan="6" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
-                                    <td class="px-4 py-3 font-medium text-gray-900" id="edit_total_ht">0.00 €</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900" id="edit_total_ht">0.00 DH</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -1064,7 +1065,7 @@ try {
                         <tfoot class="bg-gray-50">
                             <tr>
                                 <td colspan="6" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
-                                <td class="px-4 py-3 font-medium text-gray-900" id="view_total_ht">0.00 €</td>
+                                <td class="px-4 py-3 font-medium text-gray-900" id="view_total_ht">0.00 DH</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -1212,6 +1213,32 @@ try {
 </div>
 
 <script>
+    // Fonction pour charger les articles et offres en fonction de la catégorie sélectionnée
+function loadCategoryData(categorieId, mode = 'add') {
+    const prefix = mode === 'add' ? '' : 'edit_';
+    const withArticle = document.getElementById(`${prefix}categorie_filter`).options[document.getElementById(`${prefix}categorie_filter`).selectedIndex].getAttribute('data-with-article');
+
+    if (withArticle === '1') {
+        document.getElementById(`${prefix}tab-articles`).click(); // Activer l'onglet Articles
+        loadArticlesByCategory(categorieId, mode);
+    } else {
+        document.getElementById(`${prefix}tab-offres`).click(); // Activer l'onglet Offres
+        loadOffresByCategory(categorieId, mode);
+    }
+}
+
+// Écouteur d'événement pour le changement de catégorie
+document.getElementById('categorie_filter').addEventListener('change', function() {
+    const categorieId = this.value;
+    loadCategoryData(categorieId, 'add');
+});
+
+document.getElementById('edit_categorie_filter').addEventListener('change', function() {
+    const categorieId = this.value;
+    loadCategoryData(categorieId, 'edit');
+});
+
+
 // Gestion des modals
 function openModal(modalId) {
     document.getElementById(modalId).classList.remove('hidden');
@@ -1318,7 +1345,7 @@ function viewIntervention(id) {
                                 <p class="font-medium">Commande #${intervention.commande_id}</p>
                                 <p class="text-sm text-gray-500">Date: ${intervention.commande_date ? formatDate(intervention.commande_date) : 'Non spécifiée'}</p>
                             </div>
-                            <a href="../commandes/view.php?id=${intervention.commande_id}" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors">
+                            <a href="../orders/view.php?id=${intervention.commande_id}" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors">
                                 Voir la commande
                             </a>
                         </div>
@@ -1360,9 +1387,9 @@ function viewIntervention(id) {
                                 <td class="px-4 py-3 text-sm">${article.reference || '-'}</td>
                                 <td class="px-4 py-3 text-sm">${article.designation}</td>
                                 <td class="px-4 py-3 text-sm">${article.quantite}</td>
-                                <td class="px-4 py-3 text-sm">${formatPrice(article.prix_unitaire)} €</td>
+                                <td class="px-4 py-3 text-sm">${formatPrice(article.prix_unitaire)} DH</td>
                                 <td class="px-4 py-3 text-sm">${article.remise > 0 ? article.remise + '%' : '-'}</td>
-                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} €</td>
+                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} DH</td>
                             </tr>
                         `;
                     });
@@ -1379,9 +1406,9 @@ function viewIntervention(id) {
                                 <td class="px-4 py-3 text-sm">${offre.code || '-'}</td>
                                 <td class="px-4 py-3 text-sm">${offre.nom}</td>
                                 <td class="px-4 py-3 text-sm">${offre.quantite}</td>
-                                <td class="px-4 py-3 text-sm">${formatPrice(offre.prix_unitaire)} €</td>
+                                <td class="px-4 py-3 text-sm">${formatPrice(offre.prix_unitaire)} DH</td>
                                 <td class="px-4 py-3 text-sm">${offre.remise > 0 ? offre.remise + '%' : '-'}</td>
-                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} €</td>
+                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} DH</td>
                             </tr>
                         `;
                     });
@@ -1397,7 +1424,7 @@ function viewIntervention(id) {
                     viewItemsBody.innerHTML = itemsHtml;
                 }
                 
-                document.getElementById('view_total_ht').textContent = `${formatPrice(totalHT)} €`;
+                document.getElementById('view_total_ht').textContent = `${formatPrice(totalHT)} DH`;
                 
                 // Ouvrir le modal
                 openModal('viewInterventionModal');
@@ -1457,7 +1484,7 @@ function editIntervention(id) {
                     commandeInfo.innerHTML = `
                         <div class="flex items-center">
                             <span class="text-sm">Commande #${intervention.commande_id} associée</span>
-                            <a href="../commandes/view.php?id=${intervention.commande_id}" class="ml-2 text-xs text-blue-600 hover:text-blue-800">Voir</a>
+                            <a href="../orders/view.php?id=${intervention.commande_id}" class="ml-2 text-xs text-blue-600 hover:text-blue-800">Voir</a>
                         </div>
                     `;
                 } else {
@@ -1619,13 +1646,13 @@ function updateSelectedItemsTable(mode = 'add') {
                                onchange="updateItemQuantity('${mode}', 'article', ${index}, this.value)"
                                class="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm">
                     </td>
-                    <td class="px-4 py-3 text-sm">${formatPrice(article.prix_unitaire)} €</td>
+                    <td class="px-4 py-3 text-sm">${formatPrice(article.prix_unitaire)} DH</td>
                     <td class="px-4 py-3 text-sm">
                         <input type="number" min="0" max="100" value="${article.remise || 0}" 
                                onchange="updateItemRemise('${mode}', 'article', ${index}, this.value)"
                                class="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm">%
                     </td>
-                    <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} €</td>
+                    <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} DH</td>
                     <td class="px-4 py-3 text-sm">
                         <button type="button" onclick="removeItem('${mode}', 'article', ${index})" class="text-red-600 hover:text-red-800">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1654,13 +1681,13 @@ function updateSelectedItemsTable(mode = 'add') {
                                onchange="updateItemQuantity('${mode}', 'offre', ${index}, this.value)"
                                class="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm">
                     </td>
-                    <td class="px-4 py-3 text-sm">${formatPrice(offre.prix_unitaire)} €</td>
+                    <td class="px-4 py-3 text-sm">${formatPrice(offre.prix_unitaire)} DH</td>
                     <td class="px-4 py-3 text-sm">
                         <input type="number" min="0" max="100" value="${offre.remise || 0}" 
                                onchange="updateItemRemise('${mode}', 'offre', ${index}, this.value)"
                                class="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm">%
                     </td>
-                    <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} €</td>
+                    <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} DH</td>
                     <td class="px-4 py-3 text-sm">
                         <button type="button" onclick="removeItem('${mode}', 'offre', ${index})" class="text-red-600 hover:text-red-800">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1684,7 +1711,7 @@ function updateSelectedItemsTable(mode = 'add') {
     }
     
     // Mettre à jour le total HT
-    document.getElementById(`${prefix}total_ht`).textContent = `${formatPrice(totalHT)} €`;
+    document.getElementById(`${prefix}total_ht`).textContent = `${formatPrice(totalHT)} DH`;
 }
 
 // Fonction pour mettre à jour la quantité d'un élément
@@ -1772,14 +1799,56 @@ function addOffreToSelection(mode, offreId, code, nom, prix_unitaire) {
         selectedOffres[existingIndex].quantite += 1;
     } else {
         // Sinon, ajouter la nouvelle offre
-        selectedOffres.push({
+       /*  selectedOffres.push({
             id: offreId,
             code: code,
             nom: nom,
             prix_unitaire: prix_unitaire,
             quantite: 1,
             remise: 0
-        });
+        }); */
+        
+        // Récupérer les articles associés à cette offre
+        fetch(`get_offre_articles.php?offre_id=${offreId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.articles.length > 0) {
+                    // Récupérer les articles déjà sélectionnés
+                    const articlesJsonField = `${prefix}selected_articles_json`;
+                    let selectedArticles = JSON.parse(document.getElementById(articlesJsonField).value);
+                    
+                    // Ajouter chaque article associé à l'offre
+                    data.articles.forEach(article => {
+                        // Vérifier si l'article est déjà dans la liste
+                        const existingArticleIndex = selectedArticles.findIndex(item => item.id === article.id);
+                        
+                        if (existingArticleIndex !== -1) {
+                            // Si l'article existe déjà, augmenter la quantité
+                            selectedArticles[existingArticleIndex].quantite += 1;
+                        } else {
+                            // Sinon, ajouter le nouvel article avec la remise de l'offre
+                            selectedArticles.push({
+                                id: article.id,
+                                reference: article.reference || '',
+                                designation: article.designation,
+                                prix_unitaire: article.prix_vente_ht,
+                                quantite: 1,
+                                remise: article.remise_specifique || selectedOffres[selectedOffres.length - 1].remise,
+                                from_offre: offreId
+                            });
+                        }
+                    });
+                    
+                    // Mettre à jour la liste des articles sélectionnés
+                    document.getElementById(articlesJsonField).value = JSON.stringify(selectedArticles);
+                    
+                    // Mettre à jour le tableau
+                    updateSelectedItemsTable(mode);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la récupération des articles associés à l\'offre:', error);
+            });
     }
     
     document.getElementById(jsonField).value = JSON.stringify(selectedOffres);
@@ -1787,6 +1856,7 @@ function addOffreToSelection(mode, offreId, code, nom, prix_unitaire) {
     // Mettre à jour le tableau
     updateSelectedItemsTable(mode);
 }
+
 
 // Fonction pour charger les articles d'une catégorie
 function loadArticlesByCategory(categorieId, mode = 'add') {
@@ -1806,7 +1876,7 @@ function loadArticlesByCategory(categorieId, mode = 'add') {
                         <div class="p-3 hover:bg-gray-50 flex justify-between items-center">
                             <div>
                                 <div class="font-medium">${article.designation}</div>
-                                <div class="text-sm text-gray-500">Réf: ${article.reference || 'N/A'} | Prix: ${formatPrice(article.prix_vente_ht)} €</div>
+                                <div class="text-sm text-gray-500">Réf: ${article.reference || 'N/A'} | Prix: ${formatPrice(article.prix_vente_ht)} DH</div>
                             </div>
                             <button type="button" onclick="addArticleToSelection('${mode}', ${article.id}, '${article.reference || ''}', '${article.designation.replace(/'/g, "\\'")}', ${article.prix_vente_ht})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
                                 Ajouter
@@ -1845,9 +1915,9 @@ function loadOffresByCategory(categorieId, mode = 'add') {
                         <div class="p-3 hover:bg-gray-50 flex justify-between items-center">
                             <div>
                                 <div class="font-medium">${offre.nom}</div>
-                                <div class="text-sm text-gray-500">Code: ${offre.code || 'N/A'} | Prix: ${formatPrice(offre.prix)} €</div>
+                                <div class="text-sm text-gray-500">Code: ${offre.code || 'N/A'} | Prix: ${formatPrice(offre.prix_moyen_apres_remise)} DH</div>
                             </div>
-                            <button type="button" onclick="addOffreToSelection('${mode}', ${offre.id}, '${offre.code || ''}', '${offre.nom.replace(/'/g, "\\'")}', ${offre.prix})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
+                            <button type="button" onclick="addOffreToSelection('${mode}', ${offre.id}, '${offre.code || ''}', '${offre.nom.replace(/'/g, "\\'")}', ${offre.prix_moyen_apres_remise})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
                                 Ajouter
                             </button>
                         </div>
@@ -1886,7 +1956,7 @@ function searchArticles(searchTerm, mode = 'add') {
                         <div class="p-3 hover:bg-gray-50 flex justify-between items-center">
                             <div>
                                 <div class="font-medium">${article.designation}</div>
-                                <div class="text-sm text-gray-500">Réf: ${article.reference || 'N/A'} | Prix: ${formatPrice(article.prix_vente_ht)} €</div>
+                                <div class="text-sm text-gray-500">Réf: ${article.reference || 'N/A'} | Prix: ${formatPrice(article.prix_vente_ht)} DH</div>
                             </div>
                             <button type="button" onclick="addArticleToSelection('${mode}', ${article.id}, '${article.reference || ''}', '${article.designation.replace(/'/g, "\\'")}', ${article.prix_vente_ht})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
                                 Ajouter
@@ -1949,30 +2019,36 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Filtrage des articles par catégorie
     document.getElementById('categorie_filter').addEventListener('change', function() {
-        const categorieId = this.value;
-        const withArticle = this.options[this.selectedIndex].getAttribute('data-with-article');
-        
-        if (withArticle === '1') {
-            document.getElementById('tab-articles').click(); // Activer l'onglet Articles
-            loadArticlesByCategory(categorieId, 'add');
-        } else {
-            document.getElementById('tab-offres').click(); // Activer l'onglet Offres
-            loadOffresByCategory(categorieId, 'add');
-        }
-    });
+    const categorieId = this.value;
+    const withArticle = this.options[this.selectedIndex].getAttribute('data-with-article');
     
-    document.getElementById('edit_categorie_filter').addEventListener('change', function() {
-        const categorieId = this.value;
-        const withArticle = this.options[this.selectedIndex].getAttribute('data-with-article');
-        
-        if (withArticle === '1') {
-            document.getElementById('edit-tab-articles').click(); // Activer l'onglet Articles
-            loadArticlesByCategory(categorieId, 'edit');
-        } else {
-            document.getElementById('edit-tab-offres').click(); // Activer l'onglet Offres
-            loadOffresByCategory(categorieId, 'edit');
-        }
-    });
+    // Charger les deux contenus en même temps
+    loadArticlesByCategory(categorieId, 'add');
+    loadOffresByCategory(categorieId, 'add');
+    
+    // Activer l'onglet approprié selon le type de catégorie
+    if (withArticle === '1') {
+        document.getElementById('tab-articles').click(); // Activer l'onglet Articles
+    } else {
+        document.getElementById('tab-offres').click(); // Activer l'onglet Offres
+    }
+});
+    
+document.getElementById('edit_categorie_filter').addEventListener('change', function() {
+    const categorieId = this.value;
+    const withArticle = this.options[this.selectedIndex].getAttribute('data-with-article');
+    
+    // Charger les deux contenus en même temps
+    loadArticlesByCategory(categorieId, 'edit');
+    loadOffresByCategory(categorieId, 'edit');
+    
+    // Activer l'onglet approprié selon le type de catégorie
+    if (withArticle === '1') {
+        document.getElementById('edit-tab-articles').click(); // Activer l'onglet Articles
+    } else {
+        document.getElementById('edit-tab-offres').click(); // Activer l'onglet Offres
+    }
+});
     
     // Recherche d'articles
     let searchTimeout;

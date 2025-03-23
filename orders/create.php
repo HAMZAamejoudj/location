@@ -152,7 +152,7 @@ try {
 // Fetch articles list
 $articles = [];
 try {
-    $query = "SELECT * FROM article ORDER BY reference";
+    $query = "SELECT * FROM articles ORDER BY reference";
     $stmt = $db->prepare($query);
     $stmt->execute();
     $articles = $stmt->fetchAll(PDO::FETCH_ASSOC);

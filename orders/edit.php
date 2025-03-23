@@ -63,7 +63,7 @@ try {
     // Récupérer les détails de la commande
     $query = "SELECT cd.*, a.designation, a.reference 
               FROM commande_details cd
-              LEFT JOIN article a ON cd.article_id = a.id
+              LEFT JOIN articles a ON cd.article_id = a.id
               WHERE cd.ID_Commande = :id_commande";
     $stmt = $db->prepare($query);
     $stmt->bindParam(':id_commande', $id_commande);
@@ -180,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Refresh command details
         $query = "SELECT cd.*, a.designation, a.reference 
                   FROM commande_details cd
-                  LEFT JOIN article a ON cd.article_id = a.id
+                  LEFT JOIN articles a ON cd.article_id = a.id
                   WHERE cd.ID_Commande = :id_commande";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':id_commande', $id_commande);
@@ -214,7 +214,7 @@ try {
 // Fetch articles list
 $articles = [];
 try {
-    $query = "SELECT * FROM article ORDER BY reference";
+    $query = "SELECT * FROM articles ORDER BY reference";
     $stmt = $db->prepare($query);
     $stmt->execute();
     $articles = $stmt->fetchAll(PDO::FETCH_ASSOC);

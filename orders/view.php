@@ -64,7 +64,7 @@ try {
     // Récupérer les détails de la commande
     $query = "SELECT cd.*, a.designation, a.reference 
               FROM commande_details cd
-              LEFT JOIN article a ON cd.article_id = a.id
+              LEFT JOIN articles a ON cd.article_id = a.id
               WHERE cd.ID_Commande = :id_commande";
     $stmt = $db->prepare($query);
     $stmt->bindParam(':id_commande', $id_commande);
