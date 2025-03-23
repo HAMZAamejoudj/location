@@ -174,11 +174,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $stmt->bindParam(':commande_id', $commande_id);
                             $stmt->bindParam(':intervention_id', $intervention_id);
                             $stmt->execute();
-                            
+
+                           
                             // Ajouter les articles à la commande
                             if (!empty($selected_articles)) {
-                                $query = "INSERT INTO commande_articles (commande_id, article_id, quantite, prix_unitaire, remise) 
-                                          VALUES (:commande_id, :article_id, :quantite, :prix_unitaire, :remise)";
+                                $montant_ht = round(($article['prix_unitaire']*$article['quantite']) * (1 - $article['remise'] / 100), 2);
+                                $query = "INSERT INTO commande_details (ID_Commande , article_id, quantite, prix_unitaire, remise,montant_ht) 
+                                          VALUES (:commande_id, :article_id, :quantite, :prix_unitaire, :remise,:montant_ht)";
                                 $stmt = $db->prepare($query);
                                 
                                 foreach ($selected_articles as $article) {
@@ -187,6 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $stmt->bindParam(':quantite', $article['quantite']);
                                     $stmt->bindParam(':prix_unitaire', $article['prix_unitaire']);
                                     $stmt->bindParam(':remise', $article['remise']);
+                                    $stmt->bindParam(':montant_ht', $montant_ht);
                                     $stmt->execute();
                                 }
                             }

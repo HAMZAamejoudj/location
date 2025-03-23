@@ -90,17 +90,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $db->prepare($query);
                     
                     foreach ($selected_articles as $article) {
-                        $stmt->bindParam(':intervention_id', $intervention_id);
-                        $stmt->bindParam(':article_id', $article['id']);
-                        $stmt->bindParam(':quantite', $article['quantite']);
-                        $stmt->bindParam(':prix_unitaire', $article['prix_unitaire']);
-                        $stmt->bindParam(':remise', $article['remise']);
+                        $stmt->bindValue(':intervention_id', $intervention_id);
+                        $stmt->bindValue(':article_id', $article['id']);
+                        $stmt->bindValue(':quantite', $article['quantite']);
+                        $stmt->bindValue(':prix_unitaire', $article['prix_unitaire']);
+                        $stmt->bindValue(':remise', $article['remise']);
                         $stmt->execute();
                     }
                 }
                 
                 // Insérer les offres sélectionnées
-                if (!empty($selected_offres)) {
+               /*  if (!empty($selected_offres)) {
                     $query = "INSERT INTO interventions_offres (intervention_id, offre_id, quantite, prix_unitaire, remise) 
                               VALUES (:intervention_id, :offre_id, :quantite, :prix_unitaire, :remise)";
                     $stmt = $db->prepare($query);
@@ -114,74 +114,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->execute();
                     }
                 }
-                
+                 */
                 // Créer une commande si demandé
                 $commande_id = null;
-                if ($create_commande) {
-                    // Récupérer les informations du client à partir du véhicule
-                    $query = "SELECT v.client_id FROM vehicules v WHERE v.id = :vehicule_id";
-                    $stmt = $db->prepare($query);
-                    $stmt->bindParam(':vehicule_id', $vehicule_id);
-                    $stmt->execute();
-                    $client_id = $stmt->fetchColumn();
-                    
-                    if ($client_id) {
-                        // Créer la commande
-                        $numero_commande = 'CMD-' . date('YmdHis') . '-' . rand(1000, 9999);
-                        // Créer la commande
-                        $query = "INSERT INTO commandes (ID_client ,Numero_Commande, vehicule_id, date_creation, Statut_Commande, user_id, intervention_id) 
-                                  VALUES (:client_id, :numero_commande ,:vehicule_id, NOW(), 'En attente', :user_id, :intervention_id)";
-                        $stmt = $db->prepare($query);
-                        $stmt->bindParam(':client_id', $client_id);
-                        $stmt->bindParam(':numero_commande', $numero_commande);
-                        $stmt->bindParam(':vehicule_id', $vehicule_id);
-                        $stmt->bindParam(':user_id', $_SESSION['user_id']);
-                        $stmt->bindParam(':intervention_id', $intervention_id);
-                        
-                        if ($stmt->execute()) {
-                            $commande_id = $db->lastInsertId();
-                            
-                            // Mettre à jour l'intervention avec l'ID de la commande
-                            $query = "UPDATE interventions SET commande_id = :commande_id WHERE id = :intervention_id";
-                            $stmt = $db->prepare($query);
-                            $stmt->bindParam(':commande_id', $commande_id);
-                            $stmt->bindParam(':intervention_id', $intervention_id);
-                            $stmt->execute();
-                            
-                            // Ajouter les articles à la commande
-                            if (!empty($selected_articles)) {
-                                $query = "INSERT INTO commande_articles (commande_id, article_id, quantite, prix_unitaire, remise) 
-                                          VALUES (:commande_id, :article_id, :quantite, :prix_unitaire, :remise)";
-                                $stmt = $db->prepare($query);
-                                
-                                foreach ($selected_articles as $article) {
-                                    $stmt->bindParam(':commande_id', $commande_id);
-                                    $stmt->bindParam(':article_id', $article['id']);
-                                    $stmt->bindParam(':quantite', $article['quantite']);
-                                    $stmt->bindParam(':prix_unitaire', $article['prix_unitaire']);
-                                    $stmt->bindParam(':remise', $article['remise']);
-                                    $stmt->execute();
-                                }
-                            }
-                            
-                            // Ajouter les offres à la commande
-                            if (!empty($selected_offres)) {
-                                $query = "INSERT INTO commande_offres (commande_id, offre_id, quantite, prix_unitaire, remise) 
-                                          VALUES (:commande_id, :offre_id, :quantite, :prix_unitaire, :remise)";
-                                $stmt = $db->prepare($query);
-                                
-                                foreach ($selected_offres as $offre) {
-                                    $stmt->bindParam(':commande_id', $commande_id);
-                                    $stmt->bindParam(':offre_id', $offre['id']);
-                                    $stmt->bindParam(':quantite', $offre['quantite']);
-                                    $stmt->bindParam(':prix_unitaire', $offre['prix_unitaire']);
-                                    $stmt->bindParam(':remise', $offre['remise']);
-                                    $stmt->execute();
-                                }
-                            }
-                        }
-                    }
+if ($create_commande) {
+    // Récupérer les informations du client à partir du véhicule
+    $query = "SELECT v.client_id FROM vehicules v WHERE v.id = :vehicule_id";
+    $stmt = $db->prepare($query);
+    $stmt->bindValue(':vehicule_id', $vehicule_id);
+    $stmt->execute();
+    $client_id = $stmt->fetchColumn();
+    
+    if ($client_id) {
+        // Créer la commande
+        $numero_commande = 'CMD-' . date('YmdHis') . '-' . rand(1000, 9999);
+        $query = "INSERT INTO commandes (ID_client, Numero_Commande, vehicule_id, date_creation, Statut_Commande, user_id, intervention_id) 
+                  VALUES (:client_id, :numero_commande, :vehicule_id, NOW(), 'En attente', :user_id, :intervention_id)";
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(':client_id', $client_id);
+        $stmt->bindValue(':numero_commande', $numero_commande);
+        $stmt->bindValue(':vehicule_id', $vehicule_id);
+        $stmt->bindValue(':user_id', $_SESSION['user_id']);
+        $stmt->bindValue(':intervention_id', $intervention_id);
+        
+        if ($stmt->execute()) {
+            $commande_id = $db->lastInsertId();
+            
+            // Mettre à jour l'intervention
+            $query = "UPDATE interventions SET commande_id = :commande_id WHERE id = :intervention_id";
+            $stmtUpdate = $db->prepare($query);
+            $stmtUpdate->bindValue(':commande_id', $commande_id);
+            $stmtUpdate->bindValue(':intervention_id', $intervention_id);
+            $stmtUpdate->execute();
+            
+            // Ajouter les articles à la commande
+            if (!empty($selected_articles)) {
+                $total_ht = 0;
+                $query = "INSERT INTO commande_details (ID_Commande, article_id, quantite, prix_unitaire, remise, montant_ht) 
+                          VALUES (:commande_id, :article_id, :quantite, :prix_unitaire, :remise, :montant_ht)";
+                $stmtArticles = $db->prepare($query);
+                
+                foreach ($selected_articles as $article) {
+                    $montant_ht = round(($article['prix_unitaire'] * $article['quantite']) * (1 - $article['remise'] / 100), 2);
+                    $total_ht += $montant_ht;
+
+                    $stmtArticles->bindValue(':commande_id', $commande_id);
+                    $stmtArticles->bindValue(':article_id', $article['id']);
+                    $stmtArticles->bindValue(':quantite', $article['quantite']);
+                    $stmtArticles->bindValue(':prix_unitaire', $article['prix_unitaire']);
+                    $stmtArticles->bindValue(':remise', $article['remise']);
+                    $stmtArticles->bindValue(':montant_ht', $montant_ht);
+                    $stmtArticles->execute();
                 }
+                
+                // Mettre à jour le montant total HT de la commande
+                $updateQuery = "UPDATE commandes SET Montant_Total_HT = :montant_total_ht WHERE ID_Commande = :commande_id";
+                $updateStmt = $db->prepare($updateQuery);
+                $updateStmt->bindValue(':montant_total_ht', $total_ht);
+                $updateStmt->bindValue(':commande_id', $commande_id);
+                $updateStmt->execute();
+            }
+        }
+    }
+}
                 
                 // Valider la transaction
                 $db->commit();
