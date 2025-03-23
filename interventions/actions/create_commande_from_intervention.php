@@ -6,12 +6,12 @@ session_start();
 $root_path = dirname(__DIR__);
 
 // Inclure les fichiers de configuration et de fonctions
-if (file_exists($root_path . '/config/database.php')) {
-    require_once $root_path . '/config/database.php';
+if (file_exists($root_path . '../../config/database.php')) {
+    require_once $root_path . '../../config/database.php';
 }
 
-if (file_exists($root_path . '/includes/functions.php')) {
-    require_once $root_path . '/includes/functions.php';
+if (file_exists($root_path . '../includes/functions.php')) {
+    require_once $root_path . '../includes/functions.php';
 }
 
 // Vérifier si l'utilisateur est connecté
@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->commit();
                 
                 $_SESSION['success'] = 'La commande a été créée avec succès à partir de l\'intervention.';
-                header('Location: ../commandes/view.php?id=' . $commande_id);
+                header('Location: ../orders/view.php?id=' . $commande_id);
                 exit;
             } else {
                 $db->rollBack();
