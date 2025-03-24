@@ -26,6 +26,10 @@ $currentUser = [
     'role' => 'Administrateur'
 ];
 
+// ID de l'utilisateur pour l'historique
+$user_id = $_SESSION['user_id'];
+$username = $currentUser['name']; // Nom d'utilisateur pour l'historique
+
 // Récupérer la liste des véhicules et techniciens pour le formulaire
 $database = new Database();
 $db = $database->getConnection();
@@ -111,13 +115,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindParam(':id_commande', $id_commande);
         $stmt->execute();
         
+        // Get current order details to restore stock before updating
+        $query = "SELECT cd.article_id, cd.quantite, cd.prix_unitaire, a.designation 
+                  FROM commande_details cd
+                  LEFT JOIN articles a ON cd.article_id = a.id
+                  WHERE cd.ID_Commande = :id_commande";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':id_commande', $id_commande);
+        $stmt->execute();
+        $old_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Restore stock quantities from previous order details and log in history
+        foreach ($old_details as $item) {
+            // Update stock by adding back the quantity
+            $updateStock = $db->prepare("UPDATE articles SET quantite_stock = quantite_stock + :quantite WHERE id = :id_article");
+            $updateStock->bindParam(':quantite', $item['quantite']);
+            $updateStock->bindParam(':id_article', $item['article_id']);
+            $updateStock->execute();
+            
+            // Log in history - Annulation (reverting previous order items)
+            $commentaire = "Annulation article lors de la modification de la commande #" . $numero_commande;
+            $insertHistory = $db->prepare("INSERT INTO historique_articles 
+                                          (ID_Article, ID_Commande, Type_Operation, Date_Operation, 
+                                           Quantite, Prix_Unitaire, Utilisateur, Commentaire) 
+                                           VALUES 
+                                          (:id_article, :id_commande, 'Annulation', NOW(), 
+                                           :quantite, :prix_unitaire, :utilisateur, :commentaire)");
+            $insertHistory->bindParam(':id_article', $item['article_id']);
+            $insertHistory->bindParam(':id_commande', $id_commande);
+            $insertHistory->bindParam(':quantite', $item['quantite']);
+            $insertHistory->bindParam(':prix_unitaire', $item['prix_unitaire']);
+            $insertHistory->bindParam(':utilisateur', $username);
+            $insertHistory->bindParam(':commentaire', $commentaire);
+            $insertHistory->execute();
+        }
+        
         // Supprimer les anciennes lignes de commande
         $query = "DELETE FROM commande_details WHERE ID_Commande = :id_commande";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':id_commande', $id_commande);
         $stmt->execute();
         
-        // Process articles
+        // Process articles and update stock
         if (isset($_POST['articles']) && is_array($_POST['articles'])) {
             foreach ($_POST['articles'] as $article) {
                 // Skip empty rows
@@ -131,6 +170,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Calculate line totals
                 $total_ht = $quantite * $prix_unitaire;
+                
+                // Get article information for history
+                $getArticleInfo = $db->prepare("SELECT designation FROM articles WHERE id = :id_article");
+                $getArticleInfo->bindParam(':id_article', $id_article);
+                $getArticleInfo->execute();
+                $articleInfo = $getArticleInfo->fetch(PDO::FETCH_ASSOC);
+                $articleName = $articleInfo['designation'] ?? "Article #" . $id_article;
+                
+                // Check current stock level
+                $checkStock = $db->prepare("SELECT quantite_stock FROM articles WHERE id = :id_article");
+                $checkStock->bindParam(':id_article', $id_article);
+                $checkStock->execute();
+                $currentStock = $checkStock->fetchColumn();
+                
+                // Verify sufficient stock is available
+                if ($currentStock < $quantite) {
+                    throw new Exception("Stock insuffisant pour l'article ID: $id_article. Stock disponible: $currentStock, Quantité demandée: $quantite");
+                }
+                
+                // Update stock quantity
+                $updateStock = $db->prepare("UPDATE articles SET quantite_stock = quantite_stock - :quantite WHERE id = :id_article");
+                $updateStock->bindParam(':quantite', $quantite);
+                $updateStock->bindParam(':id_article', $id_article);
+                $updateStock->execute();
                 
                 // Insert command line
                 $query = "INSERT INTO commande_details (
@@ -155,6 +218,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bindParam(':total_ht', $total_ht);
                 
                 $stmt->execute();
+                
+                // Log in history - Commande (new order items)
+                $commentaire = "Article " . $articleName . " ajouté lors de la modification de la commande #" . $numero_commande;
+                $insertHistory = $db->prepare("INSERT INTO historique_articles 
+                                              (ID_Article, ID_Commande, Type_Operation, Date_Operation, 
+                                               Quantite, Prix_Unitaire, Utilisateur, Commentaire) 
+                                               VALUES 
+                                              (:id_article, :id_commande, 'Commande', NOW(), 
+                                               :quantite, :prix_unitaire, :utilisateur, :commentaire)");
+                $insertHistory->bindParam(':id_article', $id_article);
+                $insertHistory->bindParam(':id_commande', $id_commande);
+                $insertHistory->bindParam(':quantite', $quantite);
+                $insertHistory->bindParam(':prix_unitaire', $prix_unitaire);
+                $insertHistory->bindParam(':utilisateur', $username);
+                $insertHistory->bindParam(':commentaire', $commentaire);
+                $insertHistory->execute();
             }
         }
         
@@ -254,7 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->commit();
         
         // Set success message
-        $success_message = "La commande a été mise à jour avec succès!";
+        $success_message = "La commande a été mise à jour avec succès et les stocks ont été ajustés!";
         if (isset($facture_success)) {
             $success_message .= "<br>" . $facture_success;
         }
@@ -287,6 +366,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Rollback transaction on error
         $db->rollBack();
         $error_message = "Erreur: " . $e->getMessage();
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        $db->rollBack();
+        $error_message = "Erreur: " . $e->getMessage();
     }
 }
 
@@ -307,7 +390,7 @@ try {
     $error = 'Database error: ' . $e->getMessage();
 }
 
-// Fetch articles list
+// Fetch articles list with stock information
 $articles = [];
 try {
     $query = "SELECT * FROM articles ORDER BY reference";
@@ -396,7 +479,7 @@ include $root_path . '/includes/header.php';
 
             <!-- Command Form -->
             <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-                <form id="commandeForm" method="POST" action="" class="space-y-6">
+                <form id="edit-commande-form" method="POST" action="" class="space-y-6">
                     <!-- Command Details Section -->
                     <div class="px-4 py-5 sm:px-6 bg-gray-50">
                         <h3 class="text-lg leading-6 font-medium text-gray-900">Informations de la commande</h3>
@@ -429,7 +512,7 @@ include $root_path . '/includes/header.php';
                                     </div>
                                     <input type="date" name="date_commande" id="date_commande" 
                                         value="<?php echo htmlspecialchars($commande['Date_Commande']); ?>" 
-                                        class="pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                        class="date-picker pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
                                 </div>
                             </div>
 
@@ -444,7 +527,7 @@ include $root_path . '/includes/header.php';
                                     </div>
                                     <input type="date" name="date_livraison_prevue" id="date_livraison_prevue" 
                                         value="<?php echo htmlspecialchars($commande['Date_Livraison_Prevue']); ?>" 
-                                        class="pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                        class="date-picker pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
                                 </div>
                             </div>
 
@@ -481,185 +564,159 @@ include $root_path . '/includes/header.php';
                                     <select id="statut" name="statut" required
                                         class="pl-10 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
                                         <option value="En attente" <?php echo ($commande['Statut_Commande'] == 'En attente') ? 'selected' : ''; ?>>En attente</option>
-                                        <option value="Confirmée" <?php echo ($commande['Statut_Commande'] == 'Confirmée') ? 'selected' : ''; ?>>Confirmée</option>
+                                        <option value="En cours" <?php echo ($commande['Statut_Commande'] == 'En cours') ? 'selected' : ''; ?>>En cours</option>
+                                        <option value="Préparée" <?php echo ($commande['Statut_Commande'] == 'Préparée') ? 'selected' : ''; ?>>Préparée</option>
                                         <option value="Livrée" <?php echo ($commande['Statut_Commande'] == 'Livrée') ? 'selected' : ''; ?>>Livrée</option>
                                         <option value="Annulée" <?php echo ($commande['Statut_Commande'] == 'Annulée') ? 'selected' : ''; ?>>Annulée</option>
                                     </select>
                                 </div>
-                                <?php if ($facture_existante): ?>
-                                    <p class="mt-1 text-sm text-blue-600">Une facture a déjà été générée pour cette commande.</p>
-                                <?php else: ?>
-                                    <p class="mt-1 text-sm text-gray-500" id="statut-info">Sélectionner "Livrée" générera automatiquement une facture.</p>
+                                <?php if ($commande['Statut_Commande'] !== 'Livrée' && !$facture_existante): ?>
+                                <p class="mt-1 text-sm text-gray-500">Si vous changez le statut à "Livrée", une facture sera automatiquement générée.</p>
+                                <?php elseif ($facture_existante): ?>
+                                <p class="mt-1 text-sm text-amber-600">Une facture a déjà été générée pour cette commande.</p>
                                 <?php endif; ?>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="sm:col-span-6">
+                                <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                                <div class="mt-1">
+                                    <textarea id="notes" name="notes" rows="3" 
+                                        class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"><?php echo htmlspecialchars($commande['Notes'] ?? ''); ?></textarea>
+                                </div>
+                                <p class="mt-2 text-sm text-gray-500">Notes internes sur cette commande.</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Articles Section -->
-                    <div class="px-4 py-5 sm:px-6 bg-gray-50 border-t border-gray-200">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h3 class="text-lg leading-6 font-medium text-gray-900">Articles commandés</h3>
-                                <p class="mt-1 max-w-2xl text-sm text-gray-500">Modifiez les articles de cette commande.</p>
-                            </div>
-                            <button type="button" id="add-article-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                                Ajouter un article
-                            </button>
-                        </div>
+                    <!-- Command Items Section -->
+                    <div class="px-4 py-5 sm:px-6 bg-gray-50">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Articles commandés</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Ajoutez, modifiez ou supprimez des articles de cette commande.</p>
                     </div>
 
                     <div class="px-4 py-5 sm:p-6">
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
+                            <table id="articles-table" class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Article</th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Dispo</th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix unitaire</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total HT</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200 articles-container">
+                                <tbody class="bg-white divide-y divide-gray-200" id="articles-container">
                                     <?php if (empty($commande_details)): ?>
-                                        <!-- Article Template Row when no articles exist -->
-                                        <tr class="article-row">
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <select name="articles[0][id_article]" class="article-select w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="updateArticleInfo(this, 0)">
-                                                    <option value="">Sélectionner un article</option>
-                                                    <?php foreach ($articles as $article): ?>
-                                                        <option value="<?php echo $article['id']; ?>" 
-                                                                data-reference="<?php echo htmlspecialchars($article['reference']); ?>"
-                                                                data-designation="<?php echo htmlspecialchars($article['designation']); ?>"
-                                                                data-prix="<?php echo $article['prix_achat']; ?>"
-                                                                >
-                                                            <?php echo htmlspecialchars($article['designation']); ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <input type="text" name="articles[0][reference]" class="w-full text-sm border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <input type="number" name="articles[0][quantite]" min="1" value="1" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="calculateRowTotal(0)">
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="relative rounded-md shadow-sm">
-                                                    <input type="number" step="0.01" name="articles[0][prix_unitaire]" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="calculateRowTotal(0)">
-                                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                        <span class="text-gray-500 sm:text-sm">DH</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="relative rounded-md shadow-sm">
-                                                <input type="text" name="articles[0][total_ht]" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
-                                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                        <span class="text-gray-500 sm:text-sm">DH</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button type="button" class="text-red-600 hover:text-red-900 focus:outline-none transition-colors duration-200" onclick="removeArticleRow(this)">
-                                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                        </tr>
+                                    <tr class="article-row">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <select name="articles[0][id_article]" class="article-select shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
+                                                <option value="">Sélectionner un article</option>
+                                                <?php foreach ($articles as $article): ?>
+                                                <option value="<?php echo $article['id']; ?>" data-reference="<?php echo htmlspecialchars($article['reference']); ?>" data-stock="<?php echo htmlspecialchars($article['quantite_stock']); ?>" data-price="<?php echo htmlspecialchars($article['prix_vente_ht']); ?>">
+                                                    <?php echo htmlspecialchars($article['designation']); ?>
+                                                </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap article-reference">-</td>
+                                        <td class="px-6 py-4 whitespace-nowrap article-stock">-</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <input type="number" name="articles[0][quantite]" min="1" value="1" class="article-quantity shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <input type="number" name="articles[0][prix_unitaire]" step="0.01" min="0" value="0.00" class="article-price shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap article-total">0.00 €</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button type="button" class="delete-article-btn text-red-600 hover:text-red-900">
+                                                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    </tr>
                                     <?php else: ?>
-                                        <?php foreach ($commande_details as $index => $detail): ?>
-                                            <tr class="article-row">
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <select name="articles[<?php echo $index; ?>][id_article]" class="article-select w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="updateArticleInfo(this, <?php echo $index; ?>)">
-                                                        <option value="">Sélectionner un article</option>
-                                                        <?php foreach ($articles as $article): ?>
-                                                            <option value="<?php echo $article['id']; ?>" 
-                                                                    data-reference="<?php echo htmlspecialchars($article['reference']); ?>"
-                                                                    data-designation="<?php echo htmlspecialchars($article['designation']); ?>"
-                                                                    data-prix="<?php echo $article['prix_achat']; ?>"
-                                                                    <?php echo ($article['id'] == $detail['article_id']) ? 'selected' : ''; ?>>
-                                                                <?php echo htmlspecialchars($article['designation']); ?>
-                                                            </option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <input type="text" name="articles[<?php echo $index; ?>][reference]" value="<?php echo htmlspecialchars($detail['reference']); ?>" class="w-full text-sm border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <input type="number" name="articles[<?php echo $index; ?>][quantite]" min="1" value="<?php echo htmlspecialchars($detail['quantite']); ?>" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="calculateRowTotal(<?php echo $index; ?>)">
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <div class="relative rounded-md shadow-sm">
-                                                        <input type="number" step="0.01" name="articles[<?php echo $index; ?>][prix_unitaire]" value="<?php echo htmlspecialchars($detail['prix_unitaire']); ?>" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required onchange="calculateRowTotal(<?php echo $index; ?>)">
-                                                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                            <span class="text-gray-500 sm:text-sm">DH</span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                    <div class="relative rounded-md shadow-sm">
-                                                        <input type="text" name="articles[<?php echo $index; ?>][total_ht]" value="<?php echo htmlspecialchars($detail['montant_ht']); ?>" class="w-full text-sm pr-12 border-gray-300 rounded-md shadow-sm bg-gray-50" readonly>
-                                                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                                            <span class="text-gray-500 sm:text-sm">DH</span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <button type="button" class="text-red-600 hover:text-red-900 focus:outline-none transition-colors duration-200" onclick="removeArticleRow(this)">
-                                                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
+                                    <?php foreach ($commande_details as $index => $detail): ?>
+                                    <tr class="article-row">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <select name="articles[<?php echo $index; ?>][id_article]" class="article-select shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
+                                                <option value="">Sélectionner un article</option>
+                                                <?php foreach ($articles as $article): ?>
+                                                <option value="<?php echo $article['id']; ?>" 
+                                                    data-reference="<?php echo htmlspecialchars($article['reference']); ?>" 
+                                                    data-stock="<?php echo htmlspecialchars($article['quantite_stock']); ?>" 
+                                                    data-price="<?php echo htmlspecialchars($article['prix_vente_ht']); ?>"
+                                                    <?php echo ($article['id'] == $detail['article_id']) ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($article['designation']); ?>
+                                                </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap article-reference"><?php echo htmlspecialchars($detail['reference']); ?></td>
+                                        <td class="px-6 py-4 whitespace-nowrap article-stock">
+                                            <?php 
+                                            // Find the current stock for this article
+                                            $currentStock = 0;
+                                            foreach ($articles as $article) {
+                                                if ($article['id'] == $detail['article_id']) {
+                                                    $currentStock = $article['quantite_stock'];
+                                                    break;
+                                                }
+                                            }
+                                            echo $currentStock;
+                                            ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <input type="number" name="articles[<?php echo $index; ?>][quantite]" min="1" value="<?php echo htmlspecialchars($detail['quantite']); ?>" class="article-quantity shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <input type="number" name="articles[<?php echo $index; ?>][prix_unitaire]" step="0.01" min="0" value="<?php echo htmlspecialchars($detail['prix_unitaire']); ?>" class="article-price shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap article-total"><?php echo number_format($detail['montant_ht'], 2, '.', ' '); ?> €</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button type="button" class="delete-article-btn text-red-600 hover:text-red-900">
+                                                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
                                     <?php endif; ?>
                                 </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="7" class="px-6 py-4">
+                                            <button type="button" id="add-article-btn" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                                <svg class="-ml-0.5 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                                </svg>
+                                                Ajouter un article
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr class="bg-gray-50">
+                                        <td colspan="5" class="px-6 py-4 text-right font-medium">Total HT:</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <input type="number" name="montant_total_ht" id="montant_total_ht" value="<?php echo htmlspecialchars($commande['Montant_Total_HT']); ?>" step="0.01" min="0" readonly class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md bg-gray-50">
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
                             </table>
-                        </div>
-
-                        <!-- Totals Section -->
-                        <div class="mt-8 border-t border-gray-200 pt-8">
-                            <div class="flex flex-col sm:flex-row sm:justify-end">
-                                <div class="w-full sm:w-1/3 bg-gray-50 p-4 rounded-md shadow-sm">
-                                    <div class="flex justify-between py-2 text-sm">
-                                        <span class="font-medium text-gray-500">Total HT:</span>
-                                        <span id="total_ht_display" class="font-medium"><?php echo number_format($commande['Montant_Total_HT'], 2, ',', ' '); ?> DH</span>
-                                        <input type="hidden" name="montant_total_ht" id="montant_total_ht" value="<?php echo $commande['Montant_Total_HT']; ?>">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Notes Section -->
-                    <div class="px-4 py-5 sm:px-6 bg-gray-50 border-t border-gray-200">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">Notes et commentaires</h3>
-                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Ajoutez des informations supplémentaires concernant cette commande.</p>
-                    </div>
-                    
-                    <div class="px-4 py-5 sm:p-6">
-                        <div class="mt-1">
-                            <textarea name="notes" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Ajoutez des notes ou instructions spéciales pour cette commande..."><?php echo htmlspecialchars($commande['Notes'] ?? ''); ?></textarea>
                         </div>
                     </div>
 
                     <!-- Form Actions -->
-                    <div class="px-4 py-3 bg-gray-50 text-right sm:px-6 flex justify-end space-x-3 border-t border-gray-200">
-                        <a href="index.php" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                    <div class="px-4 py-3 bg-gray-50 text-right sm:px-6 space-x-3">
+                        <a href="index.php" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             Annuler
                         </a>
-                        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>
+                        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             Enregistrer les modifications
                         </button>
                     </div>
@@ -671,654 +728,247 @@ include $root_path . '/includes/header.php';
 
 <!-- Print Template -->
 <div id="print-template" class="hidden">
-    <div class="print-content p-8">
-        <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold">Bon de Commande</h1>
-            <p id="print-numero-commande" class="text-lg mt-2"></p>
-        </div>
-        
-        <div class="flex justify-between mb-8">
-            <div>
-                <h2 class="font-bold text-lg">Client:</h2>
-                <p id="print-client" class="mt-1"></p>
-            </div>
-            <div>
-                <div class="mb-2">
-                    <span class="font-semibold">Date de commande:</span>
-                    <span id="print-date-commande" class="ml-2"></span>
-                </div>
-                <div>
-                    <span class="font-semibold">Date de livraison prévue:</span>
-                    <span id="print-date-livraison" class="ml-2"></span>
-                </div>
-            </div>
-        </div>
-        
-        <table class="w-full mb-8 border-collapse">
+    <div class="print-header">
+        <h1>Commande #<?php echo htmlspecialchars($commande['Numero_Commande']); ?></h1>
+        <div class="print-date">Date: <?php echo htmlspecialchars(date('d/m/Y', strtotime($commande['Date_Commande']))); ?></div>
+    </div>
+    
+    <div class="print-client">
+        <h2>Client</h2>
+        <p><?php echo htmlspecialchars($commande['Nom_Client']); ?></p>
+    </div>
+    
+    <div class="print-details">
+        <h2>Détails de la commande</h2>
+        <table>
             <thead>
-                <tr class="bg-gray-200">
-                    <th class="border border-gray-400 p-2 text-left">Référence</th>
-                    <th class="border border-gray-400 p-2 text-left">Désignation</th>
-                    <th class="border border-gray-400 p-2 text-right">Quantité</th>
-                    <th class="border border-gray-400 p-2 text-right">Prix unitaire</th>
-                    <th class="border border-gray-400 p-2 text-right">Total HT</th>
+                <tr>
+                    <th>Article</th>
+                    <th>Référence</th>
+                    <th>Quantité</th>
+                    <th>Prix unitaire</th>
+                    <th>Total HT</th>
                 </tr>
             </thead>
-            <tbody id="print-articles">
-                <!-- Articles will be added here dynamically -->
+            <tbody>
+                <?php foreach ($commande_details as $detail): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($detail['designation']); ?></td>
+                    <td><?php echo htmlspecialchars($detail['reference']); ?></td>
+                    <td><?php echo htmlspecialchars($detail['quantite']); ?></td>
+                    <td><?php echo htmlspecialchars(number_format($detail['prix_unitaire'], 2, ',', ' ')); ?> €</td>
+                    <td><?php echo htmlspecialchars(number_format($detail['montant_ht'], 2, ',', ' ')); ?> €</td>
+                </tr>
+                <?php endforeach; ?>
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="4" class="border border-gray-400 p-2 text-right font-bold">Total HT:</td>
-                    <td id="print-total-ht" class="border border-gray-400 p-2 text-right"></td>
+                    <td colspan="4" class="text-right">Total HT:</td>
+                    <td><?php echo htmlspecialchars(number_format($commande['Montant_Total_HT'], 2, ',', ' ')); ?> €</td>
                 </tr>
             </tfoot>
         </table>
-        
-        <div class="mt-8">
-            <h3 class="font-bold mb-2">Notes:</h3>
-            <p id="print-notes" class="border p-3 min-h-[60px] bg-gray-50"></p>
-        </div>
-        
-        <div class="mt-12 flex justify-between">
-            <div>
-                <p class="font-bold mb-2">Signature du responsable:</p>
-                <div class="h-16 w-48 border-b border-gray-400 mt-12"></div>
-            </div>
-            <div>
-                <p class="font-bold mb-2">Signature du client:</p>
-                <div class="h-16 w-48 border-b border-gray-400 mt-12"></div>
-            </div>
-        </div>
-        
-        <div class="text-center text-sm text-gray-500 mt-8">
-            <p>Document généré le <?php echo date('d/m/Y à H:i'); ?></p>
-        </div>
+    </div>
+    
+    <div class="print-notes">
+        <h2>Notes</h2>
+        <p><?php echo htmlspecialchars($commande['Notes'] ?? 'Aucune note'); ?></p>
     </div>
 </div>
 
 <script>
-    // Function to update article information when an article is selected
-    function updateArticleInfo(selectElement, rowIndex) {
-        const selectedOption = selectElement.options[selectElement.selectedIndex];
-        if (!selectedOption.value) return;
-        
-        const row = selectElement.closest('.article-row');
-        
-        // Get data from the selected option
-        const reference = selectedOption.dataset.reference || '';
-        const prix = selectedOption.dataset.prix || 0;
-        
-        // Update the reference field
-        row.querySelector('input[name="articles[' + rowIndex + '][reference]"]').value = reference;
-        
-        // Update the price field
-        const priceInput = row.querySelector('input[name="articles[' + rowIndex + '][prix_unitaire]"]');
-        priceInput.value = prix;
-        
-        // Add animation to highlight the updated fields
-        priceInput.classList.add('bg-yellow-50');
-        setTimeout(() => {
-            priceInput.classList.remove('bg-yellow-50');
-        }, 1000);
-        
-        // Calculate the row total
-        calculateRowTotal(rowIndex);
+document.addEventListener('DOMContentLoaded', function() {
+    // Variables for article management
+    let articleRowTemplate;
+    let articlesContainer = document.getElementById('articles-container');
+    let addArticleBtn = document.getElementById('add-article-btn');
+    let totalInput = document.getElementById('montant_total_ht');
+    
+    // Get the template from the first row
+    if (articlesContainer.querySelector('.article-row')) {
+        articleRowTemplate = articlesContainer.querySelector('.article-row').cloneNode(true);
     }
-
-    // Function to calculate the total for a specific row
-    function calculateRowTotal(rowIndex) {
-        const row = document.querySelector('select[name="articles[' + rowIndex + '][id_article]"]').closest('.article-row');
-        const quantityInput = row.querySelector('input[name="articles[' + rowIndex + '][quantite]"]');
-        const priceInput = row.querySelector('input[name="articles[' + rowIndex + '][prix_unitaire]"]');
-        const totalInput = row.querySelector('input[name="articles[' + rowIndex + '][total_ht]"]');
-        
-        const quantity = parseFloat(quantityInput.value) || 0;
-        const price = parseFloat(priceInput.value) || 0;
-        const total = quantity * price;
-        
-        // Update the row total
-        totalInput.value = total.toFixed(2) + ' DH';
-        
-        // Add animation to highlight the updated total
-        totalInput.classList.add('bg-green-50');
-        setTimeout(() => {
-            totalInput.classList.remove('bg-green-50');
-        }, 1000);
-        
-        // Recalculate the grand total
-        calculateGrandTotal();
-    }
-
-    // Function to calculate the grand total of all rows
-    function calculateGrandTotal() {
-        let grandTotal = 0;
-        const totalInputs = document.querySelectorAll('input[name*="[total_ht]"]');
-        
-        totalInputs.forEach(input => {
-            // Remove the DH suffix if present and convert to float
-            const value = input.value.replace(' DH', '');
-            grandTotal += parseFloat(value) || 0;
-        });
-        
-        // Update the displayed totals with DH currency
-        document.getElementById('total_ht_display').textContent = formatCurrency(grandTotal);
-        
-        // Update hidden inputs for form submission
-        document.getElementById('montant_total_ht').value = grandTotal.toFixed(2);
-    }
-
-    // Function to add a new article row
-    function addArticleRow() {
-        const container = document.querySelector('.articles-container');
-        const rows = container.querySelectorAll('.article-row');
-        const lastRow = rows[rows.length - 1];
-        const newRow = lastRow.cloneNode(true);
-        const rowCount = rows.length;
-        
-        // Update names and indices
-        const inputs = newRow.querySelectorAll('input, select');
-        inputs.forEach(input => {
-            const name = input.getAttribute('name');
-            if (name) {
-                input.setAttribute('name', name.replace(/\[\d+\]/, '[' + rowCount + ']'));
-            }
-            
-            if (input.classList.contains('article-select')) {
-                input.setAttribute('onchange', 'updateArticleInfo(this, ' + rowCount + ')');
-                input.selectedIndex = 0; // Reset selection
-            }
-            
-            if (input.getAttribute('onchange') && input.getAttribute('onchange').includes('calculateRowTotal')) {
-                input.setAttribute('onchange', 'calculateRowTotal(' + rowCount + ')');
-            }
-            
-            // Reset values
-            if (!input.readOnly && input.type !== 'hidden') {
-                if (input.type === 'number' && input.name.includes('quantite')) {
-                    input.value = 1;
-                } else {
-                    input.value = '';
+    
+    // Function to update article row indexes
+    function updateArticleIndexes() {
+        document.querySelectorAll('#articles-container .article-row').forEach((row, index) => {
+            row.querySelectorAll('select, input').forEach(input => {
+                let name = input.getAttribute('name');
+                if (name) {
+                    input.setAttribute('name', name.replace(/articles\[\d+\]/, `articles[${index}]`));
                 }
-            } else if (input.readOnly) {
-                input.value = '';
-            }
+            });
         });
-        
-        // Add the new row with a fade-in animation
-        newRow.classList.add('opacity-0');
-        container.appendChild(newRow);
-        
-        // Trigger reflow to enable animation
-        newRow.offsetHeight;
-        
-        // Fade in the new row
-        newRow.classList.add('transition-opacity', 'duration-300');
-        newRow.classList.remove('opacity-0');
-        
-        // Scroll to the new row
-        newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-
-    // Function to remove an article row
-    function removeArticleRow(button) {
-        const rows = document.querySelectorAll('.article-row');
-        if (rows.length > 1) {
-            const row = button.closest('.article-row');
-            
-            // Add fade-out animation
-            row.classList.add('transition-opacity', 'duration-300', 'opacity-0');
-            
-            // Remove the row after animation completes
-            setTimeout(() => {
-                row.remove();
-                calculateGrandTotal();
-                
-                // Update indices for remaining rows
-                document.querySelectorAll('.article-row').forEach((row, index) => {
-                    const inputs = row.querySelectorAll('input, select');
-                    inputs.forEach(input => {
-                        const name = input.getAttribute('name');
-                        if (name) {
-                            input.setAttribute('name', name.replace(/\[\d+\]/, '[' + index + ']'));
-                        }
-                        
-                        if (input.classList.contains('article-select')) {
-                            input.setAttribute('onchange', 'updateArticleInfo(this, ' + index + ')');
-                        }
-                        
-                        if (input.getAttribute('onchange') && input.getAttribute('onchange').includes('calculateRowTotal')) {
-                            input.setAttribute('onchange', 'calculateRowTotal(' + index + ')');
-                        }
-                    });
-                });
-            }, 300);
-        } else {
-            // Show a toast notification if trying to remove the last row
-            showToast("Impossible de supprimer la dernière ligne", "warning");
-        }
+    
+    // Function to calculate totals
+    function calculateTotals() {
+        let total = 0;
+        document.querySelectorAll('#articles-container .article-row').forEach(row => {
+            const quantity = parseFloat(row.querySelector('.article-quantity').value) || 0;
+            const price = parseFloat(row.querySelector('.article-price').value) || 0;
+            const lineTotal = quantity * price;
+            row.querySelector('.article-total').textContent = lineTotal.toFixed(2) + ' €';
+            total += lineTotal;
+        });
+        totalInput.value = total.toFixed(2);
     }
-
-    // Show toast notification
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 translate-y-full';
+    
+    // Function to handle article selection change
+    function handleArticleSelection(select) {
+        const row = select.closest('.article-row');
+        const selectedOption = select.options[select.selectedIndex];
+        const reference = selectedOption.dataset.reference || '-';
+        const stock = selectedOption.dataset.stock || '0';
+        const price = selectedOption.dataset.price || '0.00';
         
-        // Set background color based on type
-        switch(type) {
-            case 'success':
-                toast.classList.add('bg-green-600');
-                break;
-            case 'error':
-                toast.classList.add('bg-red-600');
-                break;
-            case 'warning':
-                toast.classList.add('bg-yellow-500');
-                break;
-            default:
-                toast.classList.add('bg-blue-600');
+        row.querySelector('.article-reference').textContent = reference;
+        row.querySelector('.article-stock').textContent = stock;
+        row.querySelector('.article-price').value = price;
+        
+        calculateTotals();
+    }
+    
+    // Add event listener for the "Add Article" button
+    if (addArticleBtn && articleRowTemplate) {
+        addArticleBtn.addEventListener('click', function() {
+            const newRow = articleRowTemplate.cloneNode(true);
+            
+            // Reset values in the new row
+            newRow.querySelector('.article-select').selectedIndex = 0;
+            newRow.querySelector('.article-reference').textContent = '-';
+            newRow.querySelector('.article-stock').textContent = '-';
+            newRow.querySelector('.article-quantity').value = 1;
+            newRow.querySelector('.article-price').value = '0.00';
+            newRow.querySelector('.article-total').textContent = '0.00 €';
+            
+            // Add event listeners to the new row
+            addRowEventListeners(newRow);
+            
+            // Append the new row
+            articlesContainer.appendChild(newRow);
+            
+            // Update indexes
+            updateArticleIndexes();
+        });
+    }
+    
+    // Function to add event listeners to a row
+    function addRowEventListeners(row) {
+        // Article selection change
+        const select = row.querySelector('.article-select');
+        if (select) {
+            select.addEventListener('change', function() {
+                handleArticleSelection(this);
+            });
         }
         
-        toast.textContent = message;
-        document.body.appendChild(toast);
+        // Quantity change
+        const quantityInput = row.querySelector('.article-quantity');
+        if (quantityInput) {
+            quantityInput.addEventListener('input', calculateTotals);
+        }
         
-        // Trigger reflow to enable animation
-        toast.offsetHeight;
+        // Price change
+        const priceInput = row.querySelector('.article-price');
+        if (priceInput) {
+            priceInput.addEventListener('input', calculateTotals);
+        }
         
-        // Show toast
-        toast.classList.remove('translate-y-full');
-        
-        // Hide toast after 3 seconds
-        setTimeout(() => {
-            toast.classList.add('translate-y-full');
-            setTimeout(() => {
-                toast.remove();
-            }, 300);
-        }, 3000);
+        // Delete button
+        const deleteBtn = row.querySelector('.delete-article-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function() {
+                if (document.querySelectorAll('#articles-container .article-row').length > 1) {
+                    row.remove();
+                    updateArticleIndexes();
+                    calculateTotals();
+                } else {
+                    alert('Vous devez conserver au moins un article dans la commande.');
+                }
+            });
+        }
     }
-
-    // Format currency with DH symbol
-    function formatCurrency(amount) {
-        return new Intl.NumberFormat('fr-MA', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount) + ' DH';
-    }
-
-    // Function to prepare and print the command
-    function printCommand() {
-        // Get form data
-        const numeroCommande = document.getElementById('numero_commande').value;
-        const dateCommande = document.getElementById('date_commande').value;
-        const dateLivraison = document.getElementById('date_livraison_prevue').value;
-        const clientSelect = document.getElementById('id_client');
-        const client = clientSelect.options[clientSelect.selectedIndex]?.text || '';
-        const notes = document.querySelector('textarea[name="notes"]').value;
-        
-        // Format dates for display
-        const formattedDateCommande = new Date(dateCommande).toLocaleDateString('fr-FR');
-        const formattedDateLivraison = new Date(dateLivraison).toLocaleDateString('fr-FR');
-        
-        // Update print template with command info
-        document.getElementById('print-numero-commande').textContent = 'N° ' + numeroCommande;
-        document.getElementById('print-client').textContent = client;
-        document.getElementById('print-date-commande').textContent = formattedDateCommande;
-        document.getElementById('print-date-livraison').textContent = formattedDateLivraison;
-        document.getElementById('print-notes').textContent = notes || 'Aucune note';
-        
-        // Get totals
-        const totalHT = document.getElementById('total_ht_display').textContent;
-        
-        // Update totals in print template
-        document.getElementById('print-total-ht').textContent = totalHT;
-        
-        // Clear and populate articles table
-        const articlesContainer = document.getElementById('print-articles');
-        articlesContainer.innerHTML = '';
-        
-        document.querySelectorAll('.article-row').forEach(row => {
-            const articleSelect = row.querySelector('.article-select');
-            if (articleSelect.value) {
-                const articleName = articleSelect.options[articleSelect.selectedIndex].text;
-                const reference = row.querySelector('input[name*="[reference]"]').value;
-                const quantity = row.querySelector('input[name*="[quantite]"]').value;
-                const price = row.querySelector('input[name*="[prix_unitaire]"]').value;
-                const total = row.querySelector('input[name*="[total_ht]"]').value;
-                
-                // Create table row
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="border border-gray-400 p-2">${reference}</td>
-                    <td class="border border-gray-400 p-2">${articleName}</td>
-                    <td class="border border-gray-400 p-2 text-right">${quantity}</td>
-                    <td class="border border-gray-400 p-2 text-right">${price} DH</td>
-                    <td class="border border-gray-400 p-2 text-right">${total}</td>
-                `;
-                articlesContainer.appendChild(tr);
-            }
-        });
-        
-        // Open print dialog
+    
+    // Add event listeners to existing rows
+    document.querySelectorAll('#articles-container .article-row').forEach(row => {
+        addRowEventListeners(row);
+    });
+    
+    // Calculate totals on page load
+    calculateTotals();
+    
+    // Print functionality
+    document.getElementById('print-btn').addEventListener('click', function() {
         const printContent = document.getElementById('print-template').innerHTML;
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Bon de Commande - ${numeroCommande}</title>
-                <meta charset="UTF-8">
-                <style>
-                                        body { 
-                        font-family: Arial, sans-serif; 
-                        margin: 0; 
-                        padding: 20px;
-                        color: #333;
-                    }
-                    table { 
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        margin-bottom: 20px; 
-                    }
-                    th, td { 
-                        border: 1px solid #ddd; 
-                        padding: 8px; 
-                    }
-                    th { 
-                        background-color: #f2f2f2; 
-                        text-align: left; 
-                    }
-                    .text-right { 
-                        text-align: right; 
-                    }
-                    .text-center { 
-                        text-align: center; 
-                    }
-                    .font-bold { 
-                        font-weight: bold; 
-                    }
-                    .header {
-                        text-align: center;
-                        margin-bottom: 20px;
-                        border-bottom: 2px solid #333;
-                        padding-bottom: 10px;
-                    }
-                    .header h1 {
-                        margin-bottom: 5px;
-                    }
-                    .footer {
-                        margin-top: 30px;
-                        text-align: center;
-                        font-size: 12px;
-                        color: #666;
-                    }
-                    @media print {
-                        body { 
-                            margin: 0; 
-                            padding: 15px; 
-                        }
-                        button { 
-                            display: none; 
-                        }
-                        @page {
-                            size: A4;
-                            margin: 1cm;
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <h1>Bon de Commande</h1>
-                    <p>${numeroCommande}</p>
-                </div>
-                ${printContent}
-                <div class="footer">
-                    <p>Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
-                </div>
-                <div class="text-center" style="margin-top: 20px;">
-                    <button onclick="window.print(); setTimeout(function() { window.close(); }, 500);" 
-                            style="padding: 10px 20px; background-color: #4f46e5; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        Imprimer
-                    </button>
-                </div>
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
-    }
-
-    // Initialize event listeners when the DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        // Calculate initial grand total
-        calculateGrandTotal();
+        const originalContent = document.body.innerHTML;
         
-        // Add click event for the add article button
-        document.getElementById('add-article-btn').addEventListener('click', addArticleRow);
+        document.body.innerHTML = printContent;
+        window.print();
+        document.body.innerHTML = originalContent;
         
-        // Add click event for the print button
-        document.getElementById('print-btn').addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Check if form is valid before printing
-            if (validateForm(false)) {
-                printCommand();
-            } else {
-                showToast("Veuillez remplir correctement tous les champs obligatoires avant d'imprimer", "warning");
-            }
+        // Reattach event listeners after restoring content
+        document.addEventListener('DOMContentLoaded', function() {
+            // Your initialization code here
         });
-        
-        // Add click event for the print success button if it exists
-        const printSuccessBtn = document.getElementById('print-success-btn');
-        if (printSuccessBtn) {
-            printSuccessBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                printCommand();
-            });
-        }
-        
-        // Add change event for status select to update info text
-        const statutSelect = document.getElementById('statut');
-        const statutInfo = document.getElementById('statut-info');
-        
-        if (statutSelect && statutInfo) {
-            statutSelect.addEventListener('change', function() {
-                if (this.value === 'Livrée') {
-                    <?php if (!$facture_existante): ?>
-                        statutInfo.textContent = "Une facture sera automatiquement générée";
-                        statutInfo.classList.remove('text-gray-500');
-                        statutInfo.classList.add('text-blue-600', 'font-medium');
-                    <?php endif; ?>
-                } else {
-                    <?php if (!$facture_existante): ?>
-                        statutInfo.textContent = "Sélectionner \"Livrée\" générera automatiquement une facture";
-                        statutInfo.classList.remove('text-blue-600', 'font-medium');
-                        statutInfo.classList.add('text-gray-500');
-                    <?php endif; ?>
-                }
-            });
-        }
-        
-        // Initialize tooltips for better UX
-        initTooltips();
     });
-
-    // Initialize tooltips
-    function initTooltips() {
-        const tooltips = document.querySelectorAll('[data-tooltip]');
-        tooltips.forEach(tooltip => {
-            tooltip.addEventListener('mouseenter', showTooltip);
-            tooltip.addEventListener('mouseleave', hideTooltip);
+    
+    if (document.getElementById('print-success-btn')) {
+        document.getElementById('print-success-btn').addEventListener('click', function() {
+            const printContent = document.getElementById('print-template').innerHTML;
+            const originalContent = document.body.innerHTML;
+            
+            document.body.innerHTML = printContent;
+            window.print();
+            document.body.innerHTML = originalContent;
+            
+            // Reattach event listeners after restoring content
+            location.reload();
         });
     }
-
-    function showTooltip(e) {
-        const tooltipText = this.getAttribute('data-tooltip');
-        const tooltip = document.createElement('div');
-        tooltip.className = 'absolute z-10 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm tooltip';
-        tooltip.textContent = tooltipText;
-        tooltip.style.top = (this.offsetTop - 40) + 'px';
-        tooltip.style.left = (this.offsetLeft + this.offsetWidth / 2) + 'px';
-        tooltip.style.transform = 'translateX(-50%)';
-        document.body.appendChild(tooltip);
-        
-        // Store reference to the tooltip
-        this.tooltip = tooltip;
-    }
-
-    function hideTooltip() {
-        if (this.tooltip) {
-            this.tooltip.remove();
-            this.tooltip = null;
-        }
-    }
-
-    // Validate form before submission
-    function validateForm(showErrors = true) {
-        let isValid = true;
-        let hasArticles = false;
-        
-        // Check if client is selected
-        const client = document.getElementById('id_client');
-        if (!client.value) {
-            isValid = false;
-            if (showErrors) {
-                client.classList.add('border-red-500', 'ring-1', 'ring-red-500');
-                const errorMsg = document.createElement('p');
-                errorMsg.className = 'mt-1 text-sm text-red-600';
-                errorMsg.textContent = 'Veuillez sélectionner un client';
-                
-                // Only add error message if it doesn't exist already
-                if (!client.parentNode.querySelector('.text-red-600')) {
-                    client.parentNode.appendChild(errorMsg);
-                }
-            }
-        } else {
-            client.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
-            const errorMsg = client.parentNode.querySelector('.text-red-600');
-            if (errorMsg) {
-                errorMsg.remove();
-            }
-        }
-        
-        // Check if at least one article is selected
-        document.querySelectorAll('.article-select').forEach(select => {
-            if (select.value) {
-                hasArticles = true;
-            }
-        });
-        
-        if (!hasArticles) {
-            isValid = false;
-            if (showErrors) {
-                const container = document.querySelector('.articles-container');
-                
-                // Only add error message if it doesn't exist already
-                if (!container.nextElementSibling || !container.nextElementSibling.classList.contains('text-red-600')) {
-                    const errorMsg = document.createElement('p');
-                    errorMsg.className = 'mt-2 text-sm text-red-600';
-                    errorMsg.textContent = 'Veuillez sélectionner au moins un article';
-                    container.parentNode.insertBefore(errorMsg, container.nextElementSibling);
-                }
-            }
-        } else {
-            const errorMsg = document.querySelector('.articles-container + .text-red-600');
-            if (errorMsg) {
-                errorMsg.remove();
-            }
-        }
-        
-        // Validate each article row
-        document.querySelectorAll('.article-row').forEach(row => {
-            const articleSelect = row.querySelector('.article-select');
-            
-            if (articleSelect.value) {
-                // Check if quantity is valid
-                const quantityInput = row.querySelector('input[name*="[quantite]"]');
-                if (!quantityInput.value || parseInt(quantityInput.value) < 1) {
-                    isValid = false;
-                    if (showErrors) {
-                        quantityInput.classList.add('border-red-500', 'ring-1', 'ring-red-500');
-                        
-                        // Only add error message if it doesn't exist already
-                        if (!quantityInput.parentNode.querySelector('.text-red-600')) {
-                            const errorMsg = document.createElement('p');
-                            errorMsg.className = 'mt-1 text-sm text-red-600';
-                            errorMsg.textContent = 'Quantité invalide';
-                            quantityInput.parentNode.appendChild(errorMsg);
-                        }
-                    }
-                } else {
-                    quantityInput.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
-                    const errorMsg = quantityInput.parentNode.querySelector('.text-red-600');
-                    if (errorMsg) {
-                        errorMsg.remove();
-                    }
-                }
-                
-                // Check if price is valid
-                const priceInput = row.querySelector('input[name*="[prix_unitaire]"]');
-                if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
-                    isValid = false;
-                    if (showErrors) {
-                        priceInput.classList.add('border-red-500', 'ring-1', 'ring-red-500');
-                        
-                        // Only add error message if it doesn't exist already
-                        if (!priceInput.parentNode.querySelector('.text-red-600')) {
-                            const errorMsg = document.createElement('p');
-                            errorMsg.className = 'mt-1 text-sm text-red-600';
-                            errorMsg.textContent = 'Prix invalide';
-                            priceInput.parentNode.appendChild(errorMsg);
-                        }
-                    }
-                } else {
-                    priceInput.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
-                    const errorMsg = priceInput.parentNode.querySelector('.text-red-600');
-                    if (errorMsg) {
-                        errorMsg.remove();
-                    }
-                }
-            }
-        });
-        
-        return isValid;
-    }
-
-    // Submit form handler
-    document.getElementById('commandeForm').addEventListener('submit', function(event) {
-        if (!validateForm(true)) {
-            event.preventDefault();
-            
-            // Show error toast
-            showToast("Veuillez corriger les erreurs dans le formulaire", "error");
-            
-            // Scroll to the first error
-            const firstError = document.querySelector('.border-red-500');
-            if (firstError) {
-                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        } else {
-            // Show loading indicator
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Enregistrement...
-            `;
-            
-            // Inform user if they're changing status to "Livrée"
-            const statutSelect = document.getElementById('statut');
-            if (statutSelect && statutSelect.value === 'Livrée' && statutSelect.value !== '<?php echo $commande['Statut_Commande']; ?>') {
-                <?php if (!$facture_existante): ?>
-                    showToast("Une facture sera automatiquement générée", "info");
-                <?php endif; ?>
-            }
-        }
-    });
+});
 </script>
 
-<?php include $root_path . '/includes/footer.php'; ?>
+<style>
+@media print {
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+    }
+    
+    .print-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 10px;
+    }
+    
+    .print-client, .print-details, .print-notes {
+        margin-bottom: 20px;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+    
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    
+    th {
+        background-color: #f2f2f2;
+    }
+    
+    tfoot td {
+        font-weight: bold;
+    }
+}
+</style>
 
+<?php include $root_path . '/includes/footer.php'; ?>

@@ -90,6 +90,7 @@ try {
     // Paramètres de filtrage et pagination
     $statut_filter = isset($_GET['statut']) ? $_GET['statut'] : '';
     $search = isset($_GET['search']) ? $_GET['search'] : '';
+    $view_mode = isset($_GET['view']) ? $_GET['view'] : 'list'; // 'list' ou 'calendar'
     
     $interventionsParPage = 10; // Nombre d'interventions par page
     $pageCourante = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -224,7 +225,7 @@ try {
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="?statut=" class="text-blue-500 hover:text-blue-700 text-sm font-semibold">Voir toutes →</a>
+                        <a href="?view=<?php echo $view_mode; ?>" class="text-blue-500 hover:text-blue-700 text-sm font-semibold">Voir toutes →</a>
                     </div>
                 </div>
 
@@ -242,7 +243,7 @@ try {
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="?statut=En+attente" class="text-yellow-500 hover:text-yellow-700 text-sm font-semibold">Voir les détails →</a>
+                        <a href="?view=<?php echo $view_mode; ?>&statut=En+attente" class="text-yellow-500 hover:text-yellow-700 text-sm font-semibold">Voir les détails →</a>
                     </div>
                 </div>
 
@@ -260,7 +261,7 @@ try {
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="?statut=En+cours" class="text-blue-500 hover:text-blue-700 text-sm font-semibold">Voir les détails →</a>
+                        <a href="?view=<?php echo $view_mode; ?>&statut=En+cours" class="text-blue-500 hover:text-blue-700 text-sm font-semibold">Voir les détails →</a>
                     </div>
                 </div>
 
@@ -278,7 +279,7 @@ try {
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="?statut=Terminée" class="text-green-500 hover:text-green-700 text-sm font-semibold">Voir les détails →</a>
+                        <a href="?view=<?php echo $view_mode; ?>&statut=Terminée" class="text-green-500 hover:text-green-700 text-sm font-semibold">Voir les détails →</a>
                     </div>
                 </div>
 
@@ -296,55 +297,110 @@ try {
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="?statut=Facturée" class="text-purple-500 hover:text-purple-700 text-sm font-semibold">Voir les détails →</a>
+                        <a href="?view=<?php echo $view_mode; ?>&statut=Facturée" class="text-purple-500 hover:text-purple-700 text-sm font-semibold">Voir les détails →</a>
                     </div>
                 </div>
             </div>
 
-            <!-- Interventions List -->
+            <!-- View Toggle -->
+            <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-semibold text-gray-800">Interventions</h3>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="addIntervention()" class="px-4 py-2 bg-green-600 text-white rounded-md flex items-center hover:bg-green-700 transition duration-200">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Ajouter une intervention
+                        </button>
+                        <div class="bg-gray-200 rounded-lg p-1 flex">
+                            <a href="?view=list<?php echo !empty($statut_filter) ? '&statut='.urlencode($statut_filter) : ''; ?><?php echo !empty($search) ? '&search='.urlencode($search) : ''; ?>" class="px-3 py-1.5 rounded-md <?php echo $view_mode === 'list' ? 'bg-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'; ?>">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                                </svg>
+                            </a>
+                            <a href="?view=calendar<?php echo !empty($statut_filter) ? '&statut='.urlencode($statut_filter) : ''; ?><?php echo !empty($search) ? '&search='.urlencode($search) : ''; ?>" class="px-3 py-1.5 rounded-md <?php echo $view_mode === 'calendar' ? 'bg-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'; ?>">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Filter -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <form action="" method="GET" class="flex flex-col md:flex-row gap-4 w-full">
+                    <input type="hidden" name="view" value="<?php echo $view_mode; ?>">
+                    <div class="relative flex-1">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Rechercher une intervention...">
+                    </div>
+                    <div class="flex gap-4">
+                        <select name="statut" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Tous les statuts</option>
+                            <option value="En attente" <?php echo $statut_filter === 'En attente' ? 'selected' : ''; ?>>En attente</option>
+                            <option value="En cours" <?php echo $statut_filter === 'En cours' ? 'selected' : ''; ?>>En cours</option>
+                            <option value="Terminée" <?php echo $statut_filter === 'Terminée' ? 'selected' : ''; ?>>Terminée</option>
+                            <option value="Facturée" <?php echo $statut_filter === 'Facturée' ? 'selected' : ''; ?>>Facturée</option>
+                            <option value="Annulée" <?php echo $statut_filter === 'Annulée' ? 'selected' : ''; ?>>Annulée</option>
+                        </select>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Filtrer
+                        </button>
+                        <?php if (!empty($search) || !empty($statut_filter)): ?>
+                            <a href="?view=<?php echo $view_mode; ?>" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                Réinitialiser
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+
+            <?php if ($view_mode === 'calendar'): ?>
+            <!-- Calendar View -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-8">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-semibold text-gray-800">Liste des interventions</h3>
-                    <button onclick="addIntervention()" class="px-4 py-2 bg-green-600 text-white rounded-md flex items-center hover:bg-green-700 transition duration-200">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        Ajouter une intervention
-                    </button>
+                    <h3 class="text-xl font-semibold text-gray-800">Calendrier des interventions</h3>
+                    <div class="flex gap-2">
+                        <button id="prev-month-btn" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="month-year-display" class="px-3 py-1 font-medium"></div>
+                        <button id="next-month-btn" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-
-                <!-- Search and Filter -->
-                <div class="flex flex-col md:flex-row gap-4 mb-6">
-                    <form action="" method="GET" class="flex flex-col md:flex-row gap-4 w-full">
-                        <div class="relative flex-1">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
-                            </div>
-                            <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" class="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Rechercher une intervention...">
-                        </div>
-                        <div class="flex gap-4">
-                            <select name="statut" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Tous les statuts</option>
-                                <option value="En attente" <?php echo $statut_filter === 'En attente' ? 'selected' : ''; ?>>En attente</option>
-                                <option value="En cours" <?php echo $statut_filter === 'En cours' ? 'selected' : ''; ?>>En cours</option>
-                                <option value="Terminée" <?php echo $statut_filter === 'Terminée' ? 'selected' : ''; ?>>Terminée</option>
-                                <option value="Facturée" <?php echo $statut_filter === 'Facturée' ? 'selected' : ''; ?>>Facturée</option>
-                                <option value="Annulée" <?php echo $statut_filter === 'Annulée' ? 'selected' : ''; ?>>Annulée</option>
-                            </select>
-                            <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                Filtrer
-                            </button>
-                            <?php if (!empty($search) || !empty($statut_filter)): ?>
-                                <a href="?" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                                    Réinitialiser
-                                </a>
-                            <?php endif; ?>
-                        </div>
-                    </form>
+                
+                <div class="calendar-container">
+                    <div class="weekdays grid grid-cols-7 text-center font-medium bg-gray-100 py-2">
+                        <div>Dim</div>
+                        <div>Lun</div>
+                        <div>Mar</div>
+                        <div>Mer</div>
+                        <div>Jeu</div>
+                        <div>Ven</div>
+                        <div>Sam</div>
+                    </div>
+                    
+                    <div id="calendar-grid" class="grid grid-cols-7 grid-rows-6 gap-1 bg-gray-200 p-1">
+                        <!-- Les jours du calendrier seront générés par JavaScript -->
+                    </div>
                 </div>
-
+            </div>
+            <?php else: ?>
+            <!-- Interventions List -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
                 <!-- Table -->
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -457,6 +513,7 @@ try {
                             $url_params = [];
                             if (!empty($search)) $url_params[] = "search=" . urlencode($search);
                             if (!empty($statut_filter)) $url_params[] = "statut=" . urlencode($statut_filter);
+                            if (!empty($view_mode)) $url_params[] = "view=" . urlencode($view_mode);
                             $url_base = "?" . implode("&", $url_params);
                             $url_base = !empty($url_base) ? $url_base . "&" : "?";
                         ?>
@@ -497,6 +554,7 @@ try {
                     </div>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -679,7 +737,7 @@ try {
                             <tfoot class="bg-gray-50">
                                 <tr>
                                     <td colspan="6" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
-                                    <td class="px-4 py-3 font-medium text-gray-900" id="total_ht">0.00 DH</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900" id="total_ht">0.00 €</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -716,9 +774,14 @@ try {
                 </svg>
             </button>
         </div>
-        <form id="editInterventionForm" action="edit.php" method="POST" class="p-6">
-            <input type="hidden" id="edit_id" name="id">
+        <form id="editInterventionForm" action="update.php" method="POST" class="p-6">
+            <input type="hidden" id="edit_id" name="id" value="">
+            <input type="hidden" id="edit_client_id" name="client_id" value="">
+            <input type="hidden" id="edit_commande_id" name="commande_id" value="">
+            
+            <!-- Same fields as add intervention form but with edit_ prefix -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Vehicle selection -->
                 <div>
                     <label for="edit_vehicule_id" class="block text-sm font-medium text-gray-700 mb-1">Véhicule <span class="text-red-500">*</span></label>
                     <select id="edit_vehicule_id" name="vehicule_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
@@ -730,8 +793,9 @@ try {
                         <?php endforeach; ?>
                     </select>
                     <div id="edit_client_info" class="hidden"></div>
-                    <input type="hidden" id="edit_client_id" name="client_id" value="">
                 </div>
+                
+                <!-- Technician selection -->
                 <div>
                     <label for="edit_technicien_id" class="block text-sm font-medium text-gray-700 mb-1">Technicien</label>
                     <select id="edit_technicien_id" name="technicien_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
@@ -744,6 +808,8 @@ try {
                     </select>
                     <p class="mt-1 text-xs text-gray-500 edit-technicien-specialite hidden">Spécialité: <span id="edit_specialite_technicien"></span></p>
                 </div>
+                
+                <!-- Other fields -->
                 <div>
                     <label for="edit_date_prevue" class="block text-sm font-medium text-gray-700 mb-1">Date prévue</label>
                     <input type="date" id="edit_date_prevue" name="date_prevue" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
@@ -783,18 +849,15 @@ try {
                     </select>
                 </div>
                 <div>
-                    <label for="edit_create_commande" class="block text-sm font-medium text-gray-700 mb-1">Commande</label>
-                    <div id="edit_commande_info" class="text-sm text-gray-700">
-                        <!-- Informations sur la commande existante ou option pour en créer une -->
-                    </div>
+                    <div id="edit_commande_info"></div>
                 </div>
             </div>
             
-            <!-- Section des articles et offres -->
+            <!-- Articles and offers section -->
             <div class="mt-8 border-t border-gray-200 pt-6">
                 <h4 class="text-lg font-medium text-gray-900 mb-4">Articles et offres</h4>
                 
-                <!-- Sélection de catégorie -->
+                <!-- Category selection -->
                 <div class="mb-4">
                     <label for="edit_categorie_filter" class="block text-sm font-medium text-gray-700 mb-1">Sélectionner une catégorie</label>
                     <select id="edit_categorie_filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
@@ -807,7 +870,7 @@ try {
                     </select>
                 </div>
                 
-                <!-- Onglets Articles/Offres -->
+                <!-- Tabs for Articles/Offers -->
                 <div class="mb-6">
                     <div class="flex border-b border-gray-200">
                         <button type="button" id="edit-tab-articles" class="py-2 px-4 border-b-2 border-blue-500 text-blue-600 font-medium text-sm focus:outline-none">
@@ -819,9 +882,8 @@ try {
                     </div>
                 </div>
                 
-                <!-- Section Articles -->
+                <!-- Articles section -->
                 <div id="edit-section-articles" class="mb-6">
-                    <!-- Recherche d'articles -->
                     <div class="mb-4">
                         <label for="edit_article_search" class="block text-sm font-medium text-gray-700 mb-1">Rechercher un article</label>
                         <div class="relative">
@@ -834,7 +896,6 @@ try {
                         </div>
                     </div>
                     
-                    <!-- Liste des articles -->
                     <div class="border border-gray-300 rounded-md overflow-hidden">
                         <div class="max-h-64 overflow-y-auto" id="edit_articles_container">
                             <div class="p-4 text-center text-gray-500">
@@ -844,9 +905,8 @@ try {
                     </div>
                 </div>
                 
-                <!-- Section Offres -->
+                <!-- Offers section -->
                 <div id="edit-section-offres" class="mb-6 hidden">
-                    <!-- Liste des offres disponibles pour la catégorie sélectionnée -->
                     <div class="border border-gray-300 rounded-md overflow-hidden">
                         <div class="max-h-64 overflow-y-auto" id="edit_offres_container">
                             <div class="p-4 text-center text-gray-500">
@@ -856,7 +916,7 @@ try {
                     </div>
                 </div>
                 
-                <!-- Articles et offres sélectionnés -->
+                <!-- Selected items -->
                 <div class="mt-6">
                     <h5 class="text-md font-medium text-gray-900 mb-2">Éléments sélectionnés</h5>
                     <div class="border border-gray-300 rounded-md overflow-hidden">
@@ -881,7 +941,7 @@ try {
                             <tfoot class="bg-gray-50">
                                 <tr>
                                     <td colspan="6" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
-                                    <td class="px-4 py-3 font-medium text-gray-900" id="edit_total_ht">0.00 DH</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900" id="edit_total_ht">0.00 €</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -898,208 +958,143 @@ try {
                     Enregistrer les modifications
                 </button>
             </div>
-            <p class="text-xs text-gray-500 mt-4">Les champs marqués d'un <span class="text-red-500">*</span> sont obligatoires.</p>
             
-            <!-- Champs cachés pour stocker les articles et offres sélectionnés -->
+            <!-- Hidden fields for selected items -->
             <input type="hidden" id="edit_selected_articles_json" name="selected_articles" value="[]">
             <input type="hidden" id="edit_selected_offres_json" name="selected_offres" value="[]">
-            <input type="hidden" id="edit_commande_id" name="commande_id" value="">
-            <input type="hidden" id="edit_update_commande" name="update_commande" value="0">
         </form>
     </div>
 </div>
 
+
 <!-- View Intervention Modal -->
 <div id="viewInterventionModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-white z-10 flex justify-between items-center p-5 border-b border-gray-200">
-            <div class="flex items-center">
-                <h3 class="text-xl font-semibold text-gray-800">Détails de l'intervention</h3>
-            </div>
-            <button onclick="closeModal('viewInterventionModal')" class="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-200 rounded-full p-1">
+        <div class="flex justify-between items-center p-6 border-b">
+            <h3 class="text-lg font-semibold text-gray-800">Détails de l'intervention #<span id="view_intervention_id"></span></h3>
+            <button onclick="closeModal('viewInterventionModal')" class="text-gray-400 hover:text-gray-500">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-
-        <div id="interventionDetails" class="p-6">
-            <!-- En-tête avec statut et dates principales -->
-            <div class="mb-6">
-                <div class="flex flex-wrap items-center gap-3 mb-4">
-                    <span id="view_statut" class="px-3 py-1 rounded-full text-sm font-medium"></span>
-                    <div class="flex items-center text-sm text-gray-500">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        Créée le <span id="view_date_creation" class="ml-1 font-medium"></span>
-                    </div>
-                </div>
+        <div class="p-6">
+            <div class="mb-4">
+                <span id="view_statut" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"></span>
             </div>
-
-            <!-- Informations sur le véhicule et le client -->
-            <div class="bg-gray-50 rounded-lg p-4 mb-6">
-                <h4 class="font-medium text-gray-700 mb-3 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                    </svg>
-                    Véhicule et client
-                </h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-sm text-gray-500">Client</p>
-                        <p id="view_client" class="font-medium"></p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Véhicule</p>
-                        <p id="view_vehicule" class="font-medium"></p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Kilométrage</p>
-                        <p id="view_kilometrage" class="font-medium"></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Informations sur l'intervention -->
-            <div class="mb-6">
-                <h4 class="font-medium text-gray-700 mb-3 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Détails de l'intervention
-                </h4>
-                <div class="bg-white border border-gray-200 rounded-lg p-4">
-                    <div class="mb-4">
-                        <p class="text-sm text-gray-500 mb-1">Description</p>
-                        <p id="view_description" class="text-gray-800 whitespace-pre-line bg-gray-50 p-3 rounded"></p>
-                    </div>
-                    <div class="mb-4">
-                        <p class="text-sm text-gray-500 mb-1">Diagnostique</p>
-                        <p id="view_diagnostique" class="text-gray-800 whitespace-pre-line bg-gray-50 p-3 rounded"></p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500 mb-1">Commentaire</p>
-                        <p id="view_commentaire" class="text-gray-800 whitespace-pre-line bg-gray-50 p-3 rounded"></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Planning et technicien -->
+            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Planning -->
                 <div>
-                    <h4 class="font-medium text-gray-700 mb-3 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        Planning
-                    </h4>
-                    <div class="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-500">Date prévue:</span>
-                            <span id="view_date_prevue" class="font-medium"></span>
+                    <h4 class="font-medium text-gray-700 mb-2">Informations générales</h4>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-500">Date de création</p>
+                            <p id="view_date_creation" class="font-medium"></p>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-500">Date de début:</span>
-                            <span id="view_date_debut" class="font-medium"></span>
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-500">Date prévue</p>
+                            <p id="view_date_prevue" class="font-medium"></p>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-500">Date de fin:</span>
-                            <span id="view_date_fin" class="font-medium"></span>
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-500">Date de début</p>
+                            <p id="view_date_debut" class="font-medium"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Date de fin</p>
+                            <p id="view_date_fin" class="font-medium"></p>
                         </div>
                     </div>
                 </div>
-
-                <!-- Technicien -->
+                
                 <div>
-                    <h4 class="font-medium text-gray-700 mb-3 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                        </svg>
-                        Technicien
-                    </h4>
-                    <div id="view_technicien_container" class="bg-white border border-gray-200 rounded-lg p-4">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 flex-shrink-0 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <p id="view_technicien" class="font-medium"></p>
-                                <p id="view_technicien_specialite" class="text-sm text-gray-500"></p>
-                            </div>
+                    <h4 class="font-medium text-gray-700 mb-2">Client et véhicule</h4>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-500">Client</p>
+                            <p id="view_client" class="font-medium"></p>
+                        </div>
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-500">Véhicule</p>
+                            <p id="view_vehicule" class="font-medium"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Kilométrage</p>
+                            <p id="view_kilometrage" class="font-medium"></p>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Articles et offres utilisés -->
             <div class="mb-6">
-                <h4 class="font-medium text-gray-700 mb-3 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                    </svg>
-                    Éléments utilisés
-                </h4>
-                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200" id="view_items_table">
-                        <thead class="bg-gray-50">
+                <h4 class="font-medium text-gray-700 mb-2">Détails de l'intervention</h4>
+                <div class="bg-gray-50 p-4 rounded-md">
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-500 mb-1">Description</p>
+                        <p id="view_description" class="whitespace-pre-line"></p>
+                    </div>
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-500 mb-1">Diagnostique</p>
+                        <p id="view_diagnostique" class="whitespace-pre-line"></p>
+                    </div>
+                    <div>
+                    <p class="text-sm text-gray-500 mb-1">Commentaire</p>
+                        <p id="view_commentaire" class="whitespace-pre-line"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-2">Technicien</h4>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <p id="view_technicien" class="font-medium"></p>
+                        <p id="view_technicien_specialite" class="text-sm text-gray-500"></p>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-2">Commande</h4>
+                    <div class="bg-gray-50 p-4 rounded-md" id="view_commande_details">
+                        <!-- Contenu dynamique pour la commande -->
+                    </div>
+                </div>
+            </div>
+            
+            <div id="view_articles_section" class="mb-6">
+                <h4 class="font-medium text-gray-700 mb-2">Articles utilisés</h4>
+                <div class="bg-gray-50 rounded-md overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
                             <tr>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référence</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Désignation</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix unitaire</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remise</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Référence</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Désignation</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Prix unitaire</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remise</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200" id="view_items_body">
-                            <tr>
-                                <td colspan="7" class="px-4 py-3 text-center text-gray-500">Aucun élément utilisé</td>
-                            </tr>
+                        <tbody id="view_articles_container">
+                            <!-- Contenu dynamique pour les articles -->
                         </tbody>
-                        <tfoot class="bg-gray-50">
+                        <tfoot>
                             <tr>
-                                <td colspan="6" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
-                                <td class="px-4 py-3 font-medium text-gray-900" id="view_total_ht">0.00 DH</td>
+                                <td colspan="5" class="px-4 py-2 text-right font-medium">Total HT:</td>
+                                <td id="view_total_ht" class="px-4 py-2 font-medium"></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             </div>
-
-            <!-- Commande associée -->
-            <div id="view_commande_section" class="mb-6">
-                <h4 class="font-medium text-gray-700 mb-3 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
-                    Commande associée
-                </h4>
-                <div id="view_commande_details" class="bg-white border border-gray-200 rounded-lg p-4">
-                    <!-- Contenu dynamique pour la commande -->
-                </div>
-            </div>
-
-            <!-- Boutons d'action -->
-            <div class="mt-6 flex justify-end space-x-3">
-                <button type="button" onclick="closeModal('viewInterventionModal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+            
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" onclick="closeModal('viewInterventionModal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Fermer
                 </button>
-                <button type="button" id="editFromViewBtn" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center">
-                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                    </svg>
+                <button type="button" id="editFromViewBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
                     Modifier
                 </button>
-                <button type="button" id="createCommandeBtn" class="px-4 py-2 bg-green-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors flex items-center hidden">
-                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
+                <button type="button" id="createCommandeBtn" class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 hidden">
                     Créer une commande
                 </button>
             </div>
@@ -1107,42 +1102,11 @@ try {
     </div>
 </div>
 
-<!-- Assign Technicien Modal -->
-<div id="assignTechnicienModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-        <div class="flex justify-between items-center p-6 border-b">
-            <h3 class="text-lg font-semibold text-gray-800">Assigner un technicien</h3>
-            <button onclick="closeModal('assignTechnicienModal')" class="text-gray-400 hover:text-gray-500">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <form id="assignTechnicienForm" action="actions/assigner_technicien.php" method="POST" class="p-6">
-            <input type="hidden" id="assign_intervention_id" name="intervention_id">
-            <div class="mb-4">
-                <label for="assign_technicien_id" class="block text-sm font-medium text-gray-700 mb-1">Technicien</label>
-                <select id="assign_technicien_id" name="technicien_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Sélectionner un technicien</option>
-                    <?php foreach ($techniciens as $technicien): ?>
-                        <option value="<?php echo $technicien['id']; ?>" data-specialite="<?php echo htmlspecialchars($technicien['specialite']); ?>">
-                            <?php echo htmlspecialchars($technicien['nom_complet']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <p class="mt-1 text-xs text-gray-500 assign-technicien-specialite hidden">Spécialité: <span id="assign_specialite_technicien"></span></p>
-            </div>
-            <div class="mt-6 flex justify-end space-x-3">
-            <button type="button" onclick="closeModal('assignTechnicienModal')" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Annuler
-                </button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Assigner
-                </button>
-            </div>
-        </form>
+
+       
     </div>
 </div>
+
 
 <!-- Delete Confirmation Modal -->
 <div id="deleteConfirmationModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
@@ -1170,7 +1134,6 @@ try {
     </div>
 </div>
 
-<!-- Create Commande Modal -->
 <div id="createCommandeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
         <div class="flex justify-between items-center p-6 border-b">
@@ -1212,8 +1175,261 @@ try {
     </div>
 </div>
 
+
 <script>
-    // Fonction pour charger les articles et offres en fonction de la catégorie sélectionnée
+// Récupérer les interventions pour le calendrier
+let calendarInterventions = <?php 
+    try {
+        $query = "SELECT i.id, i.date_prevue, i.description, i.statut, 
+                  CONCAT(c.nom, ' ', c.prenom) AS client_nom,
+                  v.immatriculation, CONCAT(v.marque, ' ', v.modele) AS vehicule_info
+                  FROM interventions i
+                  INNER JOIN vehicules v ON i.vehicule_id = v.id
+                  INNER JOIN clients c ON v.client_id = c.id
+                  WHERE i.date_prevue IS NOT NULL";
+        
+        // Ajouter les filtres si nécessaire
+        if (!empty($statut_filter)) {
+            $query .= " AND i.statut = :statut";
+        }
+        if (!empty($search)) {
+            $query .= " AND (v.immatriculation LIKE :search OR c.nom LIKE :search OR c.prenom LIKE :search OR i.description LIKE :search)";
+        }
+        
+        $query .= " ORDER BY i.date_prevue ASC";
+        
+        $stmt = $db->prepare($query);
+        
+        // Lier les paramètres si nécessaire
+        if (!empty($statut_filter)) {
+            $stmt->bindParam(':statut', $statut_filter);
+        }
+        if (!empty($search)) {
+            $search_param = "%$search%";
+            $stmt->bindParam(':search', $search_param);
+        }
+        
+        $stmt->execute();
+        $calendarData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Transformer les données pour le format du calendrier
+        $formattedData = [];
+        foreach ($calendarData as $intervention) {
+            $date = substr($intervention['date_prevue'], 0, 10); // Format YYYY-MM-DD
+            if (!isset($formattedData[$date])) {
+                $formattedData[$date] = [];
+            }
+            $formattedData[$date][] = [
+                'id' => $intervention['id'],
+                'client' => $intervention['client_nom'],
+                'description' => $intervention['description'],
+                'statut' => $intervention['statut'],
+                'vehicule' => $intervention['immatriculation']
+            ];
+        }
+        echo json_encode($formattedData);
+    } catch (PDOException $e) {
+        echo "{}";
+        error_log('Erreur lors de la récupération des interventions pour le calendrier: ' . $e->getMessage());
+    }
+?>;
+
+// Fonction pour générer le calendrier
+function generateCalendar(year, month) {
+    const calendarGrid = document.getElementById('calendar-grid');
+    if (!calendarGrid) return; // Sortir si on n'est pas sur la vue calendrier
+    
+    const monthYearDisplay = document.getElementById('month-year-display');
+    
+    // Vider le calendrier
+    calendarGrid.innerHTML = '';
+    
+    // Mettre à jour l'affichage du mois et de l'année
+    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+                        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    monthYearDisplay.textContent = `${monthNames[month]} ${year}`;
+    
+    // Obtenir le premier jour du mois (0 = Dimanche, 1 = Lundi, etc.)
+    const firstDay = new Date(year, month, 1).getDay();
+    
+    // Obtenir le nombre de jours dans le mois
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Obtenir le dernier jour du mois précédent
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    
+    // Date actuelle pour surligner le jour courant
+    const today = new Date();
+    const currentDate = today.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // Générer les jours du mois précédent (grisés)
+    for (let i = 0; i < firstDay; i++) {
+        const day = daysInPrevMonth - firstDay + i + 1;
+        const prevMonth = month - 1 < 0 ? 11 : month - 1;
+        const prevYear = prevMonth === 11 ? year - 1 : year;
+        const dateString = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        const dayCell = document.createElement('div');
+        dayCell.className = 'day-cell bg-gray-100 p-1 h-24 overflow-y-auto';
+        dayCell.innerHTML = `
+            <div class="text-gray-400 text-sm font-medium">${day}</div>
+            <div class="interventions-container"></div>
+        `;
+        
+        // Ajouter les interventions pour ce jour (s'il y en a)
+        addInterventionsToCell(dayCell, dateString);
+        
+        calendarGrid.appendChild(dayCell);
+    }
+    
+    // Générer les jours du mois courant
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        const dayCell = document.createElement('div');
+        dayCell.className = 'day-cell bg-white p-1 h-24 overflow-y-auto';
+        
+        // Surligner le jour courant
+        if (day === currentDate && month === currentMonth && year === currentYear) {
+            dayCell.classList.add('bg-blue-50', 'border', 'border-blue-300');
+        }
+        
+        dayCell.innerHTML = `
+            <div class="text-gray-800 text-sm font-medium">${day}</div>
+            <div class="interventions-container"></div>
+        `;
+        
+        // Ajouter les interventions pour ce jour (s'il y en a)
+        addInterventionsToCell(dayCell, dateString);
+        
+        // Ajouter un événement pour ajouter une intervention à cette date
+        dayCell.addEventListener('dblclick', () => {
+            addInterventionForDate(dateString);
+        });
+        
+        calendarGrid.appendChild(dayCell);
+    }
+    
+    // Calculer le nombre de cellules nécessaires pour compléter la grille (6 lignes de 7 jours)
+    const remainingCells = 42 - (firstDay + daysInMonth);
+    
+    // Générer les jours du mois suivant (grisés)
+    for (let day = 1; day <= remainingCells; day++) {
+        const nextMonth = month + 1 > 11 ? 0 : month + 1;
+        const nextYear = nextMonth === 0 ? year + 1 : year;
+        const dateString = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        const dayCell = document.createElement('div');
+        dayCell.className = 'day-cell bg-gray-100 p-1 h-24 overflow-y-auto';
+        dayCell.innerHTML = `
+            <div class="text-gray-400 text-sm font-medium">${day}</div>
+            <div class="interventions-container"></div>
+        `;
+        
+        // Ajouter les interventions pour ce jour (s'il y en a)
+        addInterventionsToCell(dayCell, dateString);
+        
+        calendarGrid.appendChild(dayCell);
+    }
+}
+
+// Fonction pour ajouter les interventions à une cellule du calendrier
+function addInterventionsToCell(cell, dateString) {
+    const interventionsContainer = cell.querySelector('.interventions-container');
+    
+    if (calendarInterventions[dateString]) {
+        const interventions = calendarInterventions[dateString];
+        
+        interventions.forEach(intervention => {
+            const statusClass = getStatusClass(intervention.statut);
+            
+            const interventionElement = document.createElement('div');
+            interventionElement.className = `text-xs p-1 mb-1 rounded ${statusClass} cursor-pointer hover:opacity-80`;
+            interventionElement.innerHTML = `
+                <div class="font-medium">#${intervention.id} - ${intervention.client}</div>
+                <div class="text-xs truncate">${intervention.vehicule}</div>
+            `;
+            
+            // Ajouter un événement pour voir les détails de l'intervention
+            interventionElement.addEventListener('click', () => {
+                viewIntervention(intervention.id);
+            });
+            
+            interventionsContainer.appendChild(interventionElement);
+        });
+    }
+}
+
+// Fonction pour obtenir la classe CSS en fonction du statut
+function getStatusClass(statut) {
+    switch (statut) {
+        case 'En attente':
+            return 'bg-yellow-100 text-yellow-800 border-l-2 border-yellow-500';
+        case 'En cours':
+            return 'bg-blue-100 text-blue-800 border-l-2 border-blue-500';
+        case 'Terminée':
+            return 'bg-green-100 text-green-800 border-l-2 border-green-500';
+        case 'Facturée':
+            return 'bg-purple-100 text-purple-800 border-l-2 border-purple-500';
+        case 'Annulée':
+            return 'bg-red-100 text-red-800 border-l-2 border-red-500';
+        default:
+            return 'bg-gray-100 text-gray-800 border-l-2 border-gray-500';
+    }
+}
+
+// Fonction pour ajouter une intervention à une date spécifique
+function addInterventionForDate(dateString) {
+    // Ouvrir le modal d'ajout d'intervention avec la date pré-remplie
+    document.getElementById('date_prevue').value = dateString;
+    addIntervention();
+}
+
+// Initialisation du calendrier si on est sur la vue calendrier
+let currentCalendarDate = new Date();
+if (document.getElementById('calendar-grid')) {
+    // Générer le calendrier initial
+    generateCalendar(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth());
+
+    // Gérer la navigation entre les mois
+    document.getElementById('prev-month-btn').addEventListener('click', () => {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+        generateCalendar(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth());
+    });
+
+    document.getElementById('next-month-btn').addEventListener('click', () => {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+        generateCalendar(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth());
+    });
+}
+
+// Ajouter des styles CSS pour le calendrier
+document.head.insertAdjacentHTML('beforeend', `
+    <style>
+        .calendar-container {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .day-cell {
+            border: 1px solid #e5e7eb;
+            min-height: 100px;
+            position: relative;
+        }
+        
+        .day-cell:hover {
+            background-color: #f9fafb;
+        }
+        
+        .interventions-container {
+            margin-top: 4px;
+        }
+    </style>
+`);
+
 function loadCategoryData(categorieId, mode = 'add') {
     const prefix = mode === 'add' ? '' : 'edit_';
     const withArticle = document.getElementById(`${prefix}categorie_filter`).options[document.getElementById(`${prefix}categorie_filter`).selectedIndex].getAttribute('data-with-article');
@@ -1271,6 +1487,7 @@ function addIntervention() {
 }
 
 // Fonction pour voir les détails d'une intervention
+// Fonction pour voir les détails d'une intervention
 function viewIntervention(id) {
     // Requête AJAX pour récupérer les détails de l'intervention
     fetch(`get_intervention.php?id=${id}`)
@@ -1278,6 +1495,9 @@ function viewIntervention(id) {
         .then(data => {
             if (data.success) {
                 const intervention = data.intervention;
+                
+                // Afficher l'ID de l'intervention
+                document.getElementById('view_intervention_id').textContent = intervention.id;
                 
                 // Remplir les champs du modal de visualisation
                 document.getElementById('view_date_creation').textContent = formatDate(intervention.date_creation);
@@ -1315,7 +1535,6 @@ function viewIntervention(id) {
                 }
                 
                 // Afficher les informations du technicien
-                const technicienContainer = document.getElementById('view_technicien_container');
                 const technicienName = document.getElementById('view_technicien');
                 const technicienSpecialite = document.getElementById('view_technicien_specialite');
                 
@@ -1323,18 +1542,18 @@ function viewIntervention(id) {
                     technicienName.textContent = intervention.technicien;
                     technicienSpecialite.textContent = intervention.technicien_specialite || 'Spécialité non spécifiée';
                 } else {
-                    technicienContainer.innerHTML = `
-                        <div class="text-center py-3">
-                            <p class="text-gray-500 italic">Aucun technicien assigné</p>
-                            <button onclick="assignTechnicien(${id}); closeModal('viewInterventionModal');" class="mt-2 text-sm text-blue-600 hover:text-blue-800">
-                                Assigner un technicien
-                            </button>
-                        </div>
+                    technicienName.textContent = 'Non assigné';
+                    technicienSpecialite.textContent = '';
+                    
+                    // Ajouter un bouton pour assigner un technicien
+                    technicienSpecialite.innerHTML = `
+                        <button onclick="assignTechnicien(${id}); closeModal('viewInterventionModal');" class="mt-2 text-sm text-blue-600 hover:text-blue-800">
+                            Assigner un technicien
+                        </button>
                     `;
                 }
                 
                 // Afficher les informations de la commande
-                const commandeSection = document.getElementById('view_commande_section');
                 const commandeDetails = document.getElementById('view_commande_details');
                 const createCommandeBtn = document.getElementById('createCommandeBtn');
                 
@@ -1359,9 +1578,8 @@ function viewIntervention(id) {
                     `;
                     createCommandeBtn.classList.remove('hidden');
                     createCommandeBtn.onclick = function() {
-                        document.getElementById('commande_intervention_id').value = id;
+                        createCommandeFromIntervention(id);
                         closeModal('viewInterventionModal');
-                        openModal('createCommandeModal');
                     };
                 }
                 
@@ -1372,7 +1590,7 @@ function viewIntervention(id) {
                 };
                 
                 // Afficher les articles et offres
-                const viewItemsBody = document.getElementById('view_items_body');
+                const viewArticlesContainer = document.getElementById('view_articles_container');
                 let itemsHtml = '';
                 let totalHT = 0;
                 
@@ -1383,13 +1601,12 @@ function viewIntervention(id) {
                         
                         itemsHtml += `
                             <tr>
-                                <td class="px-4 py-3 text-sm">Article</td>
                                 <td class="px-4 py-3 text-sm">${article.reference || '-'}</td>
                                 <td class="px-4 py-3 text-sm">${article.designation}</td>
                                 <td class="px-4 py-3 text-sm">${article.quantite}</td>
-                                <td class="px-4 py-3 text-sm">${formatPrice(article.prix_unitaire)} DH</td>
+                                <td class="px-4 py-3 text-sm">${formatPrice(article.prix_unitaire)} €</td>
                                 <td class="px-4 py-3 text-sm">${article.remise > 0 ? article.remise + '%' : '-'}</td>
-                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} DH</td>
+                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} €</td>
                             </tr>
                         `;
                     });
@@ -1402,29 +1619,28 @@ function viewIntervention(id) {
                         
                         itemsHtml += `
                             <tr>
-                                <td class="px-4 py-3 text-sm">Offre</td>
                                 <td class="px-4 py-3 text-sm">${offre.code || '-'}</td>
                                 <td class="px-4 py-3 text-sm">${offre.nom}</td>
                                 <td class="px-4 py-3 text-sm">${offre.quantite}</td>
-                                <td class="px-4 py-3 text-sm">${formatPrice(offre.prix_unitaire)} DH</td>
+                                <td class="px-4 py-3 text-sm">${formatPrice(offre.prix_unitaire)} €</td>
                                 <td class="px-4 py-3 text-sm">${offre.remise > 0 ? offre.remise + '%' : '-'}</td>
-                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} DH</td>
+                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} €</td>
                             </tr>
                         `;
                     });
                 }
                 
                 if (itemsHtml === '') {
-                    viewItemsBody.innerHTML = `
+                    viewArticlesContainer.innerHTML = `
                         <tr>
-                            <td colspan="7" class="px-4 py-3 text-center text-gray-500">Aucun élément utilisé</td>
+                            <td colspan="6" class="px-4 py-3 text-center text-gray-500">Aucun élément utilisé</td>
                         </tr>
                     `;
                 } else {
-                    viewItemsBody.innerHTML = itemsHtml;
+                    viewArticlesContainer.innerHTML = itemsHtml;
                 }
                 
-                document.getElementById('view_total_ht').textContent = `${formatPrice(totalHT)} DH`;
+                document.getElementById('view_total_ht').textContent = `${formatPrice(totalHT)} €`;
                 
                 // Ouvrir le modal
                 openModal('viewInterventionModal');
@@ -1437,6 +1653,32 @@ function viewIntervention(id) {
             alert('Une erreur est survenue lors de la récupération des détails');
         });
 }
+
+// Fonction pour supprimer une intervention
+function deleteIntervention(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette intervention ?')) {
+        // Créer un formulaire pour soumettre la suppression
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'actions/delete_intervention.php';
+        
+        const idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.name = 'id';
+        idInput.value = id;
+        
+        form.appendChild(idInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Fonction pour créer une commande à partir d'une intervention
+function createCommandeFromIntervention(id) {
+    // Rediriger vers la page de création de commande avec l'ID de l'intervention
+    window.location.href = '../orders/create.php?intervention_id=' + id;
+}
+
 
 // Fonction pour éditer une intervention
 function editIntervention(id) {
