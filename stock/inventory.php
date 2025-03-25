@@ -379,7 +379,7 @@ include $root_path . '/includes/header.php';
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <?php echo number_format($mouvement['Prix_Unitaire'], 2, ',', ' '); ?> €
+                                            <?php echo number_format($mouvement['Prix_Unitaire'], 2, ',', ' '); ?> DH
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <?php if (!empty($mouvement['Numero_Commande'])): ?>

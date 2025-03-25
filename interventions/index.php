@@ -737,7 +737,7 @@ try {
                             <tfoot class="bg-gray-50">
                                 <tr>
                                     <td colspan="6" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
-                                    <td class="px-4 py-3 font-medium text-gray-900" id="total_ht">0.00 €</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900" id="total_ht">0.00 DH</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -941,7 +941,7 @@ try {
                             <tfoot class="bg-gray-50">
                                 <tr>
                                     <td colspan="6" class="px-4 py-3 text-right font-medium text-gray-700">Total HT:</td>
-                                    <td class="px-4 py-3 font-medium text-gray-900" id="edit_total_ht">0.00 €</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900" id="edit_total_ht">0.00 DH</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -1604,9 +1604,9 @@ function viewIntervention(id) {
                                 <td class="px-4 py-3 text-sm">${article.reference || '-'}</td>
                                 <td class="px-4 py-3 text-sm">${article.designation}</td>
                                 <td class="px-4 py-3 text-sm">${article.quantite}</td>
-                                <td class="px-4 py-3 text-sm">${formatPrice(article.prix_unitaire)} €</td>
+                                <td class="px-4 py-3 text-sm">${formatPrice(article.prix_unitaire)} DH</td>
                                 <td class="px-4 py-3 text-sm">${article.remise > 0 ? article.remise + '%' : '-'}</td>
-                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} €</td>
+                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} DH</td>
                             </tr>
                         `;
                     });
@@ -1622,9 +1622,9 @@ function viewIntervention(id) {
                                 <td class="px-4 py-3 text-sm">${offre.code || '-'}</td>
                                 <td class="px-4 py-3 text-sm">${offre.nom}</td>
                                 <td class="px-4 py-3 text-sm">${offre.quantite}</td>
-                                <td class="px-4 py-3 text-sm">${formatPrice(offre.prix_unitaire)} €</td>
+                                <td class="px-4 py-3 text-sm">${formatPrice(offre.prix_unitaire)} DH</td>
                                 <td class="px-4 py-3 text-sm">${offre.remise > 0 ? offre.remise + '%' : '-'}</td>
-                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} €</td>
+                                <td class="px-4 py-3 text-sm font-medium">${formatPrice(prixTotal)} DH</td>
                             </tr>
                         `;
                     });
@@ -1640,7 +1640,7 @@ function viewIntervention(id) {
                     viewArticlesContainer.innerHTML = itemsHtml;
                 }
                 
-                document.getElementById('view_total_ht').textContent = `${formatPrice(totalHT)} €`;
+                document.getElementById('view_total_ht').textContent = `${formatPrice(totalHT)} DH`;
                 
                 // Ouvrir le modal
                 openModal('viewInterventionModal');

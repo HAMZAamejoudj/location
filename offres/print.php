@@ -321,7 +321,7 @@ logAction($db, $_SESSION['user_id'], 'Impression', 'offres', null, "Impression d
                     </td>
                     <td>
                         <?= htmlspecialchars($offre['valeur_remise']) ?>
-                        <?= $offre['type_remise'] === 'pourcentage' ? ' %' : ' €' ?>
+                        <?= $offre['type_remise'] === 'pourcentage' ? ' %' : ' DH' ?>
                     </td>
                     <td>
                         <?php

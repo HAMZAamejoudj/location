@@ -630,7 +630,7 @@ include $root_path . '/includes/header.php';
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <input type="number" name="articles[0][prix_unitaire]" step="0.01" min="0" value="0.00" class="article-price shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap article-total">0.00 €</td>
+                                        <td class="px-6 py-4 whitespace-nowrap article-total">0.00 DH</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button type="button" class="delete-article-btn text-red-600 hover:text-red-900">
                                                 <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -676,7 +676,7 @@ include $root_path . '/includes/header.php';
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <input type="number" name="articles[<?php echo $index; ?>][prix_unitaire]" step="0.01" min="0" value="<?php echo htmlspecialchars($detail['prix_unitaire']); ?>" class="article-price shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap article-total"><?php echo number_format($detail['montant_ht'], 2, '.', ' '); ?> €</td>
+                                        <td class="px-6 py-4 whitespace-nowrap article-total"><?php echo number_format($detail['montant_ht'], 2, '.', ' '); ?> DH</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button type="button" class="delete-article-btn text-red-600 hover:text-red-900">
                                                 <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -756,15 +756,15 @@ include $root_path . '/includes/header.php';
                     <td><?php echo htmlspecialchars($detail['designation']); ?></td>
                     <td><?php echo htmlspecialchars($detail['reference']); ?></td>
                     <td><?php echo htmlspecialchars($detail['quantite']); ?></td>
-                    <td><?php echo htmlspecialchars(number_format($detail['prix_unitaire'], 2, ',', ' ')); ?> €</td>
-                    <td><?php echo htmlspecialchars(number_format($detail['montant_ht'], 2, ',', ' ')); ?> €</td>
+                    <td><?php echo htmlspecialchars(number_format($detail['prix_unitaire'], 2, ',', ' ')); ?> DH</td>
+                    <td><?php echo htmlspecialchars(number_format($detail['montant_ht'], 2, ',', ' ')); ?> DH</td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
             <tfoot>
                 <tr>
                     <td colspan="4" class="text-right">Total HT:</td>
-                    <td><?php echo htmlspecialchars(number_format($commande['Montant_Total_HT'], 2, ',', ' ')); ?> €</td>
+                    <td><?php echo htmlspecialchars(number_format($commande['Montant_Total_HT'], 2, ',', ' ')); ?> DH</td>
                 </tr>
             </tfoot>
         </table>
@@ -808,7 +808,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const quantity = parseFloat(row.querySelector('.article-quantity').value) || 0;
             const price = parseFloat(row.querySelector('.article-price').value) || 0;
             const lineTotal = quantity * price;
-            row.querySelector('.article-total').textContent = lineTotal.toFixed(2) + ' €';
+            row.querySelector('.article-total').textContent = lineTotal.toFixed(2) + ' DH';
             total += lineTotal;
         });
         totalInput.value = total.toFixed(2);
@@ -840,7 +840,7 @@ document.addEventListener('DOMContentLoaded', function() {
             newRow.querySelector('.article-stock').textContent = '-';
             newRow.querySelector('.article-quantity').value = 1;
             newRow.querySelector('.article-price').value = '0.00';
-            newRow.querySelector('.article-total').textContent = '0.00 €';
+            newRow.querySelector('.article-total').textContent = '0.00 DH';
             
             // Add event listeners to the new row
             addRowEventListeners(newRow);

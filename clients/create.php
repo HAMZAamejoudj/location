@@ -67,8 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Validation du délai de paiement
         if (isset($_POST['delai_paiement'])) {
             $delaiPaiement = intval($_POST['delai_paiement']);
-            if ($delaiPaiement < 0 || $delaiPaiement > 15) {
-                $errors['delai_paiement'] = 'Le délai de paiement doit être compris entre 0 et 15 jours';
+            if ($delaiPaiement < 0 || $delaiPaiement > 60) {
+                $errors['delai_paiement'] = 'Le délai de paiement doit être compris entre 0 et 60 jours';
             }
         }
     }
@@ -103,11 +103,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
             // Requête d'insertion
             if ($_POST['type_client'] == 'client') {
-                $query = "INSERT INTO clients (type_client_id, nom, prenom, email, telephone, adresse, code_postal, ville, date_creation,notes ) 
+                $query = "INSERT INTO clients (type_client_id, nom, prenom, email, telephone, adresse, code_postal, ville, date_creation, notes) 
                           VALUES (:type_client, :nom, :prenom, :email, :telephone, :adresse, :code_postal, :ville, :date_creation, :notes)";
             } else {
-                $query = "INSERT INTO clients (type_client_id, nom, raison_sociale, registre_rcc, email, telephone, adresse, code_postal, ville, date_creation,notes,delai_paiement) 
-                          VALUES (:type_client, :nom, :raison_sociale, :registre_rcc, :email, :telephone, :adresse, :code_postal, :ville, :date_creation,:notes,:delai_paiement)";
+                $query = "INSERT INTO clients (type_client_id, nom, raison_sociale, registre_rcc, email, telephone, adresse, code_postal, ville, date_creation, notes, delai_paiement) 
+                          VALUES (:type_client, :nom, :raison_sociale, :registre_rcc, :email, :telephone, :adresse, :code_postal, :ville, :date_creation, :notes, :delai_paiement)";
             }
     
             $stmt = $db->prepare($query);
@@ -220,12 +220,23 @@ include $root_path . '/includes/header.php';
                                 <label for="registre_rcc" class="block text-sm font-medium text-gray-700">Registre RCC <span class="text-red-500">*</span></label>
                                 <input type="text" id="registre_rcc" name="registre_rcc" value="<?php echo isset($_POST['registre_rcc']) ? htmlspecialchars($_POST['registre_rcc']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
-                             <!-- Délai de paiement (pour société) -->
-                             <div id="delai-paiement-container" class="hidden">
-                                <label for="delai_paiement" class="block text-sm font-medium text-gray-700">Délai de paiement (jours)</label>
-                                <div class="flex items-center">
-                                    <input type="number" id="delai_paiement" name="delai_paiement" min="0" max="15" value="<?php echo isset($_POST['delai_paiement']) ? htmlspecialchars($_POST['delai_paiement']) : '0'; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                                    <span class="ml-2 text-sm text-gray-500">jours (0-15)</span>
+                            
+                            <!-- Délai de paiement (pour société) -->
+                            <div id="delai-paiement-container" class="hidden">
+                                <label for="delai_paiement_select" class="block text-sm font-medium text-gray-700">Délai de paiement</label>
+                                <div class="flex flex-col space-y-2">
+                                    <select id="delai_paiement_select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="">Sélectionnez un délai ou saisissez une valeur personnalisée</option>
+                                        <option value="14">2 semaines (14 jours)</option>
+                                        <option value="30">1 mois (30 jours)</option>
+                                        <option value="60">2 mois (60 jours)</option>
+                                        <option value="custom">Personnalisé</option>
+                                    </select>
+                                    
+                                    <div id="custom_delai_container" class="hidden flex items-center">
+                                        <input type="number" id="delai_paiement" name="delai_paiement" min="0" max="60" value="<?php echo isset($_POST['delai_paiement']) ? htmlspecialchars($_POST['delai_paiement']) : '0'; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                        <span class="ml-2 text-sm text-gray-500">jours (max 60)</span>
+                                    </div>
                                 </div>
                                 <p class="mt-1 text-sm text-gray-500">Nombre de jours accordés pour le paiement des factures.</p>
                             </div>
@@ -259,10 +270,12 @@ include $root_path . '/includes/header.php';
                                 <label for="ville" class="block text-sm font-medium text-gray-700">Ville</label>
                                 <input type="text" id="ville" name="ville" value="<?php echo isset($_POST['ville']) ? htmlspecialchars($_POST['ville']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
+                            
+                            <!-- Notes -->
                             <div class="md:col-span-2">
                                 <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
                                 <input type="text" id="notes" name="notes" value="<?php echo isset($_POST['notes']) ? htmlspecialchars($_POST['notes']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                         </div>
+                            </div>
                         </div>
 
                         <!-- Boutons -->
@@ -285,6 +298,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const raisonSocialeContainer = document.getElementById('raison-sociale-container');
     const registreRCCContainer = document.getElementById('registre-rcc-container');
     const delaiPaiementContainer = document.getElementById('delai-paiement-container');
+    
+    // Nouveaux éléments pour le délai de paiement
+    const delaiPaiementSelect = document.getElementById('delai_paiement_select');
+    const customDelaiContainer = document.getElementById('custom_delai_container');
+    const delaiPaiementInput = document.getElementById('delai_paiement');
 
     function updateFields() {
         const selectedType = typeClientSelect.value;
@@ -306,16 +324,31 @@ document.addEventListener('DOMContentLoaded', function() {
             delaiPaiementContainer.classList.add('hidden');
         }
     }
-   // Validation du délai de paiement
-   const delaiPaiementInput = document.getElementById('delai_paiement');
+
+    // Gestion du délai de paiement
+    delaiPaiementSelect.addEventListener('change', function() {
+        const selectedValue = this.value;
+        
+        if (selectedValue === 'custom') {
+            // Afficher le champ personnalisé
+            customDelaiContainer.classList.remove('hidden');
+            delaiPaiementInput.focus();
+        } else {
+            // Masquer le champ personnalisé et définir la valeur sélectionnée
+            customDelaiContainer.classList.add('hidden');
+            delaiPaiementInput.value = selectedValue;
+        }
+    });
+
+    // Validation du délai de paiement
     delaiPaiementInput.addEventListener('input', function() {
         let value = parseInt(this.value);
         if (isNaN(value)) {
             this.value = 0;
         } else if (value < 0) {
             this.value = 0;
-        } else if (value > 15) {
-            this.value = 15;
+        } else if (value > 60) {
+            this.value = 60;
         }
     });
 

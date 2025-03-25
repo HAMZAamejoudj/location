@@ -645,21 +645,21 @@ try {
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Révision</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">Révision complète + changement filtres</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">40 000 km</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">350,00 €</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">350,00 DH</td>
                             </tr>
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15/03/2022</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Contrôle technique</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">Contrôle technique réglementaire</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">35 500 km</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">80,00 €</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">80,00 DH</td>
                             </tr>
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">22/11/2021</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Réparation</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">Remplacement batterie</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">32 000 km</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">120,00 €</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">120,00 DH</td>
                             </tr>
                         </tbody>
                     </table>

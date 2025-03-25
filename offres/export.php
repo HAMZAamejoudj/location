@@ -100,7 +100,7 @@ try {
             $offre['date_debut'],
             $offre['date_fin'] ?: 'Sans fin',
             $offre['type_remise'] === 'pourcentage' ? 'Pourcentage' : 'Montant fixe',
-            $offre['valeur_remise'] . ($offre['type_remise'] === 'pourcentage' ? ' %' : ' €'),
+            $offre['valeur_remise'] . ($offre['type_remise'] === 'pourcentage' ? ' %' : ' DH'),
             $offre['actif'] ? 'Actif' : 'Inactif',
             $offre['priorite'],
             $offre['description'],

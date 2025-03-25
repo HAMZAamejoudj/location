@@ -271,7 +271,7 @@ include $root_path . '/includes/header.php';
                                 <?php endif; ?>
                             </div>
                             
-                            <div class="mt-6 pt-6 border-t border-gray-200">
+                            <!-- <div class="mt-6 pt-6 border-t border-gray-200">
                                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h3>
                                 
                                 <div class="space-y-2">
@@ -303,7 +303,7 @@ include $root_path . '/includes/header.php';
                                         Envoyer un email
                                     </a>
                                 </div>
-                            </div>
+                            </div> -->
                             
                             <div class="mt-6 pt-6 border-t border-gray-200">
                                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Statistiques</h3>
@@ -323,7 +323,7 @@ include $root_path . '/includes/header.php';
                                     </div>
                                     <div class="bg-gray-50 p-3 rounded-lg">
                                         <div class="text-xs text-gray-500">Total facturé</div>
-                                        <div class="text-xl font-semibold text-indigo-600"><?php echo number_format($total_factures, 2, ',', ' '); ?> €</div>
+                                        <div class="text-xl font-semibold text-indigo-600"><?php echo number_format($total_factures, 2, ',', ' '); ?> DH</div>
                                     </div>
                                 </div>
                             </div>
@@ -353,7 +353,7 @@ include $root_path . '/includes/header.php';
                         <div class="p-6">
                             <!-- Vehicles Tab -->
                             <div id="content-vehicles" class="tab-content block">
-                                <div class="flex justify-between items-center mb-4">
+                                <!-- <div class="flex justify-between items-center mb-4">
                                     <h3 class="text-lg font-semibold text-gray-800">Liste des véhicules</h3>
                                     <a href="<?php echo $root_path; ?>/vehicles/create.php?client_id=<?php echo $client['id']; ?>" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -361,7 +361,7 @@ include $root_path . '/includes/header.php';
                                         </svg>
                                         Ajouter
                                     </a>
-                                </div>
+                                </div> -->
                                 
                                 <?php if (empty($vehicules)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
@@ -443,7 +443,7 @@ include $root_path . '/includes/header.php';
                             
                             <!-- Interventions Tab -->
                             <div id="content-interventions" class="tab-content hidden">
-                                <div class="flex justify-between items-center mb-4">
+                                <!-- <div class="flex justify-between items-center mb-4">
                                     <h3 class="text-lg font-semibold text-gray-800">Interventions</h3>
                                     <a href="<?php echo $root_path; ?>/interventions/create.php?client_id=<?php echo $client['id']; ?>" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -451,7 +451,7 @@ include $root_path . '/includes/header.php';
                                         </svg>
                                         Ajouter
                                     </a>
-                                </div>
+                                </div> -->
                                 
                                 <?php if (empty($interventions)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
@@ -548,7 +548,7 @@ include $root_path . '/includes/header.php';
                             
                             <!-- Invoices Tab -->
                             <div id="content-invoices" class="tab-content hidden">
-                                <div class="flex justify-between items-center mb-4">
+                                <!-- <div class="flex justify-between items-center mb-4">
                                     <h3 class="text-lg font-semibold text-gray-800">Factures</h3>
                                     <a href="<?php echo $root_path; ?>/invoices/create.php?client_id=<?php echo $client['id']; ?>" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -556,7 +556,7 @@ include $root_path . '/includes/header.php';
                                         </svg>
                                         Ajouter
                                     </a>
-                                </div>
+                                </div> -->
                                 
                                 <?php if (empty($factures)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
@@ -594,7 +594,7 @@ include $root_path . '/includes/header.php';
                                                             <div class="text-sm text-gray-900"><?php echo date('d/m/Y', strtotime($facture['date_creation'])); ?></div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-900"><?php echo number_format($facture['montant_ttc'], 2, ',', ' '); ?> €</div>
+                                                            <div class="text-sm text-gray-900"><?php echo number_format($facture['montant_ttc'], 2, ',', ' '); ?> DH</div>
                                                         </td>
                                                         <td class="px-6 py-4 whitespace-nowrap">
                                                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 

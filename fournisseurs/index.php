@@ -856,7 +856,7 @@ $totalPages = ceil($totalFournisseurs / $limit);
                         commandesHtml += `
                             <div class="flex justify-between">
                                 <span class="text-sm font-medium text-gray-500">${commande.Numero_Commande}:</span>
-                                <span class="text-sm text-gray-900">${formatDate(commande.Date_Commande)} - ${formatMontant(commande.Montant_Total_TTC)} €</span>
+                                <span class="text-sm text-gray-900">${formatDate(commande.Date_Commande)} - ${formatMontant(commande.Montant_Total_TTC)} DH</span>
                             </div>
                         `;
                     });

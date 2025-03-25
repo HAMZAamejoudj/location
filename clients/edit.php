@@ -85,8 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          // Validation du délai de paiement
          if (isset($_POST['delai_paiement'])) {
             $delaiPaiement = intval($_POST['delai_paiement']);
-            if ($delaiPaiement < 0 || $delaiPaiement > 15) {
-                $errors['delai_paiement'] = 'Le délai de paiement doit être compris entre 0 et 15 jours';
+            if ($delaiPaiement < 0 || $delaiPaiement > 60) {
+                $errors['delai_paiement'] = 'Le délai de paiement doit être compris entre 0 et 60 jours';
             }
         }
     }
@@ -236,12 +236,21 @@ include $root_path . '/includes/header.php';
                                 </div>
                                  <!-- Délai de paiement pour les sociétés -->
                                  <div id="delai-paiement-container">
-                                    <label for="delai_paiement" class="block text-sm font-medium text-gray-700">Délai de paiement (jours)</label>
-                                    <div class="flex items-center">
-                                        <input type="number" id="delai_paiement" name="delai_paiement" min="0" max="15" 
-                                               value="<?php echo htmlspecialchars($client['delai_paiement']); ?>" 
-                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                                        <span class="ml-2 text-sm text-gray-500">jours (0-15)</span>
+                                    <label for="delai_paiement_select" class="block text-sm font-medium text-gray-700">Délai de paiement</label>
+                                    <div class="flex flex-col space-y-2">
+                                        <select id="delai_paiement_select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                            <option value="">Sélectionnez un délai ou saisissez une valeur personnalisée</option>
+                                            <option value="0" <?php echo ($client['delai_paiement'] == 0) ? 'selected' : ''; ?>>0 jour</option>
+                                            <option value="14" <?php echo ($client['delai_paiement'] == 14) ? 'selected' : ''; ?>>2 semaines (14 jours)</option>
+                                            <option value="30" <?php echo ($client['delai_paiement'] == 30) ? 'selected' : ''; ?>>1 mois (30 jours)</option>
+                                            <option value="60" <?php echo ($client['delai_paiement'] == 60) ? 'selected' : ''; ?>>2 mois (60 jours)</option>
+                                            <option value="custom" <?php echo (!in_array($client['delai_paiement'], [0, 14, 30, 60])) ? 'selected' : ''; ?>>Personnalisé</option>
+                                        </select>
+                                        
+                                        <div id="custom_delai_container" class="<?php echo (!in_array($client['delai_paiement'], [0, 14, 30, 60])) ? '' : 'hidden'; ?> flex items-center">
+                                            <input type="number" id="delai_paiement" name="delai_paiement" min="0" max="60" value="<?php echo htmlspecialchars($client['delai_paiement']); ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                            <span class="ml-2 text-sm text-gray-500">jours (max 60)</span>
+                                        </div>
                                     </div>
                                     <p class="mt-1 text-sm text-gray-500">Nombre de jours accordés pour le paiement des factures.</p>
                                 </div>
@@ -303,8 +312,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const raisonSocialeField = document.querySelector('[name="raison_sociale"]');
     const registreRCCField = document.querySelector('[name="registre_rcc"]');
     
-    // Validation du délai de paiement
+    // Éléments pour le délai de paiement
+    const delaiPaiementSelect = document.getElementById('delai_paiement_select');
+    const customDelaiContainer = document.getElementById('custom_delai_container');
     const delaiPaiementInput = document.getElementById('delai_paiement');
+
+    // Gestion du délai de paiement
+    if (delaiPaiementSelect && delaiPaiementInput) {
+        delaiPaiementSelect.addEventListener('change', function() {
+            const selectedValue = this.value;
+            
+            if (selectedValue === 'custom') {
+                // Afficher le champ personnalisé
+                customDelaiContainer.classList.remove('hidden');
+                delaiPaiementInput.focus();
+            } else if (selectedValue !== '') {
+                // Masquer le champ personnalisé et définir la valeur sélectionnée
+                customDelaiContainer.classList.add('hidden');
+                delaiPaiementInput.value = selectedValue;
+            }
+        });
+        
+        // S'assurer que la valeur initiale est correcte
+        if (!customDelaiContainer.classList.contains('hidden')) {
+            delaiPaiementSelect.value = 'custom';
+        } else if (delaiPaiementInput.value) {
+            const value = parseInt(delaiPaiementInput.value);
+            if ([0, 14, 30, 60].includes(value)) {
+                delaiPaiementSelect.value = value.toString();
+            } else {
+                delaiPaiementSelect.value = 'custom';
+                customDelaiContainer.classList.remove('hidden');
+            }
+        }
+    }
+
+    // Validation du délai de paiement
     if (delaiPaiementInput) {
         delaiPaiementInput.addEventListener('input', function() {
             let value = parseInt(this.value);
@@ -312,8 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.value = 0;
             } else if (value < 0) {
                 this.value = 0;
-            } else if (value > 15) {
-                this.value = 15;
+            } else if (value > 60) {
+                this.value = 60;
             }
         });
     }
@@ -322,12 +365,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (prenomField) prenomField.parentElement.style.display = 'block';
         if (raisonSocialeField) raisonSocialeField.parentElement.style.display = 'none';
         if (registreRCCField) registreRCCField.parentElement.style.display = 'none';
-        if (delaiPaiementInput) delaiPaiementInput.parentElement.parentElement.style.display = 'none';
+        if (delaiPaiementSelect) delaiPaiementSelect.parentElement.parentElement.style.display = 'none';
     } else if (typeClient === 'societe') {
         if (prenomField) prenomField.parentElement.style.display = 'none';
         if (raisonSocialeField) raisonSocialeField.parentElement.style.display = 'block';
         if (registreRCCField) registreRCCField.parentElement.style.display = 'block';
-        if (delaiPaiementInput) delaiPaiementInput.parentElement.parentElement.style.display = 'block';
+        if (delaiPaiementSelect) delaiPaiementSelect.parentElement.parentElement.style.display = 'block';
     }
 });
 </script>

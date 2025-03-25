@@ -262,7 +262,7 @@ include $root_path . '/includes/header.php';
                     <h3 class="text-lg font-medium text-gray-700 mb-4">Informations Financières</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="prix_achat" class="block text-sm font-medium text-gray-700 mb-1">Prix d'achat (€ HT)*</label>
+                            <label for="prix_achat" class="block text-sm font-medium text-gray-700 mb-1">Prix d'achat (DH HT)*</label>
                             <input type="number" id="prix_achat" name="prix_achat" step="0.01" min="0" placeholder="0.00" required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 value="<?php echo isset($_POST['prix_achat']) ? htmlspecialchars($_POST['prix_achat']) : ''; ?>">
@@ -283,7 +283,7 @@ include $root_path . '/includes/header.php';
                     
                     <div class="grid grid-cols-1 md:grid-cols-1 gap-4 mt-4">
                         <div>
-                            <label for="prix_vente_ht" class="block text-sm font-medium text-gray-700 mb-1">Prix de vente (€ HT)</label>
+                            <label for="prix_vente_ht" class="block text-sm font-medium text-gray-700 mb-1">Prix de vente (DH HT)</label>
                             <input type="number" id="prix_vente_ht" name="prix_vente_ht" step="0.01" min="0" readonly
                                 class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md">
                             <span class="text-xs text-gray-500 mt-1 block">Calculé automatiquement</span>
@@ -598,9 +598,9 @@ include $root_path . '/includes/header.php';
                     designation: 'Désignation',
                     categorie: 'Catégorie',
                     emplacement: 'Emplacement',
-                    prix_achat: 'Prix d\'achat (€ HT)',
+                    prix_achat: 'Prix d\'achat (DH HT)',
                     marge_benifice: 'Marge bénéfice (%)',
-                    prix_vente_ht: 'Prix de vente (€ HT)',
+                    prix_vente_ht: 'Prix de vente (DH HT)',
                     quantite_stock: 'Quantité en stock',
                     seuil_alerte: 'Seuil d\'alerte',
                     date_creation: 'Date de création',
@@ -627,7 +627,7 @@ include $root_path . '/includes/header.php';
                 // Add calculated fields
                 const prixVenteHt = document.getElementById('prix_vente_ht').value;
                 
-                tableHTML += `<tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Prix de vente (€ HT)</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${prixVenteHt}</td></tr>`;
+                tableHTML += `<tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Prix de vente (DH HT)</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${prixVenteHt}</td></tr>`;
                 
                 tableHTML += '</tbody></table>';
                 previewContent.innerHTML = tableHTML;

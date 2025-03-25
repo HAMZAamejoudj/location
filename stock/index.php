@@ -147,7 +147,7 @@ include $root_path . '/includes/header.php';
                                     $stmt = $db->prepare($query);
                                     $stmt->execute();
                                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                                    echo number_format($result['total'] ?? 0, 2, ',', ' ') . ' €';
+                                    echo number_format($result['total'] ?? 0, 2, ',', ' ') . ' DH';
                                 ?>
                             </p>
                         </div>
@@ -359,10 +359,10 @@ include $root_path . '/includes/header.php';
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <?php echo number_format($article['prix_achat'], 2, ',', ' '); ?> €
+                                            <?php echo number_format($article['prix_achat'], 2, ',', ' '); ?> DH
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <?php echo number_format($article['prix_vente_ht'], 2, ',', ' '); ?> €
+                                            <?php echo number_format($article['prix_vente_ht'], 2, ',', ' '); ?> DH
                                         </td>
                                         
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

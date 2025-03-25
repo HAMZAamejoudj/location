@@ -455,7 +455,7 @@ $totalPages = ceil($totalOffres / $limit);
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <?php 
                                         echo htmlspecialchars($offre['valeur_remise']); 
-                                        echo $offre['type_remise'] === 'pourcentage' ? ' %' : ' €';
+                                        echo $offre['type_remise'] === 'pourcentage' ? ' %' : ' DH';
                                         ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
@@ -612,7 +612,7 @@ $totalPages = ceil($totalOffres / $limit);
                     <label for="type_remise" class="block text-sm font-medium text-gray-700 mb-1">Type de remise*</label>
                     <select id="type_remise" name="type_remise" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
                         <option value="pourcentage">Pourcentage (%)</option>
-                        <option value="montant_fixe">Montant fixe (€)</option>
+                        <option value="montant_fixe">Montant fixe (DH)</option>
                     </select>
                 </div>
                 <div>
@@ -814,7 +814,7 @@ $totalPages = ceil($totalOffres / $limit);
                     <label for="edit_type_remise" class="block text-sm font-medium text-gray-700 mb-1">Type de remise*</label>
                     <select id="edit_type_remise" name="type_remise" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
                         <option value="pourcentage">Pourcentage (%)</option>
-                        <option value="montant_fixe">Montant fixe (€)</option>
+                        <option value="montant_fixe">Montant fixe (DH)</option>
                     </select>
                 </div>
                 <div>
@@ -946,7 +946,7 @@ $totalPages = ceil($totalOffres / $limit);
                         html += `
                             <div class="flex items-center">
                                 <input type="checkbox" name="articles[]" value="${article.id}" id="article_${article.id}" ${isChecked} class="mr-2 article-checkbox">
-                                <label for="article_${article.id}" class="text-sm text-gray-700">${article.reference} - ${article.designation} (${article.prix_vente} €)</label>
+                                <label for="article_${article.id}" class="text-sm text-gray-700">${article.reference} - ${article.designation} (${article.prix_vente} DH)</label>
                             </div>
                         `;
                     });
@@ -1030,7 +1030,7 @@ $totalPages = ceil($totalOffres / $limit);
                 document.getElementById('view_periode').textContent = periode;
                 
                 // Format remise
-                const remise = data.offre.valeur_remise + (data.offre.type_remise === 'pourcentage' ? ' %' : ' €');
+                const remise = data.offre.valeur_remise + (data.offre.type_remise === 'pourcentage' ? ' %' : ' DH');
                 document.getElementById('view_remise').textContent = remise;
                 
                 document.getElementById('view_priorite').textContent = data.offre.priorite || '0';
@@ -1079,7 +1079,7 @@ $totalPages = ceil($totalOffres / $limit);
                     data.articles.forEach(article => {
                         let remiseSpecifique = '';
                         if (article.remise_specifique) {
-                            remiseSpecifique = ` (remise spécifique: ${article.remise_specifique}${data.offre.type_remise === 'pourcentage' ? ' %' : ' €'})`;
+                            remiseSpecifique = ` (remise spécifique: ${article.remise_specifique}${data.offre.type_remise === 'pourcentage' ? ' %' : ' DH'})`;
                         }
                         articlesHtml += `<li class="text-sm">${article.reference} - ${article.designation}${remiseSpecifique}</li>`;
                     });

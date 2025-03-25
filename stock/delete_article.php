@@ -160,11 +160,11 @@ include $root_path . '/includes/header.php';
                         </div>
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Prix d'achat</dt>
-                            <dd class="mt-1 text-sm text-gray-900"><?php echo number_format($article['prix_achat'], 2, ',', ' '); ?> €</dd>
+                            <dd class="mt-1 text-sm text-gray-900"><?php echo number_format($article['prix_achat'], 2, ',', ' '); ?> DH</dd>
                         </div>
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Prix de vente HT</dt>
-                            <dd class="mt-1 text-sm text-gray-900"><?php echo number_format($article['prix_vente_ht'], 2, ',', ' '); ?> €</dd>
+                            <dd class="mt-1 text-sm text-gray-900"><?php echo number_format($article['prix_vente_ht'], 2, ',', ' '); ?> DH</dd>
                         </div>
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Quantité en stock</dt>

@@ -272,7 +272,7 @@ include $root_path . '/includes/header.php';
                                         <?php echo htmlspecialchars($facture['client_nom'] . ' ' . $facture['client_prenom']); ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <?php echo number_format($facture['Montant_Total_HT'], 2, ',', ' '); ?> €
+                                        <?php echo number_format($facture['Montant_Total_HT'], 2, ',', ' '); ?> DH
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 

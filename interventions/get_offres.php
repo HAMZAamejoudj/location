@@ -87,7 +87,7 @@ try {
                 COUNT(oa.article_id) as nombre_articles,
                 CASE 
                     WHEN o.type_remise = 'pourcentage' THEN CONCAT(o.valeur_remise, '%')
-                    ELSE CONCAT(o.valeur_remise, ' €')
+                    ELSE CONCAT(o.valeur_remise, ' DH')
                 END as remise_formatee
                 FROM offres o
                 LEFT JOIN offres_articles oa ON o.id = oa.offre_id
@@ -137,7 +137,7 @@ try {
                 COUNT(oa.article_id) as nombre_articles,
                 CASE 
                     WHEN o.type_remise = 'pourcentage' THEN CONCAT(o.valeur_remise, '%')
-                    ELSE CONCAT(o.valeur_remise, ' €')
+                    ELSE CONCAT(o.valeur_remise, ' DH')
                 END as remise_formatee
                 FROM offres o
                 LEFT JOIN categorie c ON o.categorie_id = c.id

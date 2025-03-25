@@ -281,7 +281,7 @@ include $root_path . '/includes/header.php';
                     <h3 class="text-lg font-medium text-gray-700 mb-4">Informations Financières</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="prix_achat" class="block text-sm font-medium text-gray-700 mb-1">Prix d'achat (€ HT)*</label>
+                            <label for="prix_achat" class="block text-sm font-medium text-gray-700 mb-1">Prix d'achat (DH HT)*</label>
                             <input type="number" id="prix_achat" name="prix_achat" step="0.01" min="0" placeholder="0.00" required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 value="<?php echo htmlspecialchars($article['prix_achat']); ?>">

@@ -100,9 +100,12 @@ function is_active($page, $dir = '') {
             <!-- Offres -->
             <li>
                 <a href="/sas-gestion-auto/offres/" class="flex items-center px-6 py-3 <?php echo is_active('', 'offres'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                    </svg>
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7a1 1 0 011-1h4.586a1 1 0 01.707.293l7.414 7.414a1 1 0 010 1.414l-4.586 4.586a1 1 0 01-1.414 0L4.293 9.707A1 1 0 014 9V8a1 1 0 011-1h2z" />
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01" />
+</svg>
+
+
                     <span>Offres</span>
                 </a>
             </li>

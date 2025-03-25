@@ -295,7 +295,7 @@ function getEmailTemplate($data) {
                 
                 <div class="info-box">
                     <p><strong>Numéro de facture:</strong> <span class="highlight">' . $data['numero_facture'] . '</span></p>
-                    <p><strong>Montant:</strong> <span class="highlight">' . $data['montant'] . ' € HT</span></p>
+                    <p><strong>Montant:</strong> <span class="highlight">' . $data['montant'] . ' DH HT</span></p>
                 </div>
                 
                 <p>Vous trouverez votre facture en pièce jointe de cet email au format PDF.</p>
@@ -328,7 +328,7 @@ function getPlainTextEmail($data) {
 Nous vous informons que votre facture est maintenant disponible.
 
 Numéro de facture: ' . $data['numero_facture'] . '
-Montant: ' . $data['montant'] . ' € HT
+Montant: ' . $data['montant'] . ' DH HT
 Date d\'échéance: ' . $data['date_echeance'] . '
 
 Vous trouverez votre facture en pièce jointe de cet email au format PDF.
