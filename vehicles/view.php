@@ -95,7 +95,7 @@ $totalPages = ceil($totalVehicules / $vehiculesParPage);
 $query = "SELECT v.id, v.immatriculation, v.marque, v.modele, v.annee, 
           CONCAT(c.nom, ' ', c.prenom) AS client, c.id AS client_id,
           v.kilometrage, v.statut, v.couleur, v.carburant, v.puissance,
-          v.date_achat, v.date_derniere_revision, v.date_prochain_ct, v.notes
+          v.date_mise_circulation, v.date_derniere_revision, v.date_prochain_ct, v.notes
           FROM vehicules v 
           LEFT JOIN clients c ON v.client_id = c.id 
           $whereString
@@ -406,7 +406,8 @@ include '../includes/header.php';
                 <!-- Table -->
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                        
+                    <thead class="bg-gray-50">
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Immatriculation</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marque</th>
@@ -576,11 +577,51 @@ include '../includes/header.php';
                 <div>
                     <label for="marque" class="block text-sm font-medium text-gray-700 mb-1">Marque</label>
                     <select id="marque" name="marque" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" required>
-                        <option value="">Sélectionner une marque</option>
-                        <?php foreach ($marques as $m): ?>
-                            <option value="<?php echo htmlspecialchars($m); ?>"><?php echo htmlspecialchars($m); ?></option>
-                        <?php endforeach; ?>
-                        <option value="autre">Autre</option>
+                        <option value="0">:: MARQUE ::</option>
+                        <option value="ABARTH">ABARTH</option>
+                        <option value="ALFA ROMEO">ALFA ROMEO</option>
+                        <option value="AUDI">AUDI</option>
+                        <option value="BMW">BMW</option>
+                        <option value="BYD">BYD</option>
+                        <option value="CHANGAN">CHANGAN</option>
+                        <option value="CHERY">CHERY</option>
+                        <option value="CITROEN">CITROEN</option>
+                        <option value="CUPRA">CUPRA</option>
+                        <option value="DACIA">DACIA</option>
+                        <option value="DFSK">DFSK</option>
+                        <option value="DS">DS</option>
+                        <option value="FIAT">FIAT</option>
+                        <option value="FORD">FORD</option>
+                        <option value="GEELY">GEELY</option>
+                        <option value="GWM">GWM</option>
+                        <option value="HONDA">HONDA</option>
+                        <option value="HYUNDAI">HYUNDAI</option>
+                        <option value="JAECOO">JAECOO</option>
+                        <option value="JAGUAR">JAGUAR</option>
+                        <option value="JEEP">JEEP</option>
+                        <option value="KIA">KIA</option>
+                        <option value="LAND ROVER">LAND ROVER</option>
+                        <option value="LEXUS">LEXUS</option>
+                        <option value="MAHINDRA">MAHINDRA</option>
+                        <option value="MASERATI">MASERATI</option>
+                        <option value="MAZDA">MAZDA</option>
+                        <option value="MERCEDES">MERCEDES</option>
+                        <option value="MG">MG</option>
+                        <option value="MINI">MINI</option>
+                        <option value="MITSUBISHI">MITSUBISHI</option>
+                        <option value="NISSAN">NISSAN</option>
+                        <option value="OMODA">OMODA</option>
+                        <option value="OPEL">OPEL</option>
+                        <option value="PEUGEOT">PEUGEOT</option>
+                        <option value="PORSCHE">PORSCHE</option>
+                        <option value="RENAULT">RENAULT</option>
+                        <option value="SEAT">SEAT</option>
+                        <option value="SERES">SERES</option>
+                        <option value="SKODA">SKODA</option>
+                        <option value="SUZUKI">SUZUKI</option>
+                        <option value="TOYOTA">TOYOTA</option>
+                        <option value="VOLKSWAGEN">VOLKSWAGEN</option>
+                        <option value="VOLVO">VOLVO</option>
                     </select>
                 </div>
                 <div>
@@ -615,8 +656,8 @@ include '../includes/header.php';
                     <input type="number" id="puissance" name="puissance" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="5">
                 </div>
                 <div>
-                    <label for="date_achat" class="block text-sm font-medium text-gray-700 mb-1">Date d'achat</label>
-                    <input type="date" id="date_achat" name="date_achat" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
+                    <label for="date_mise_circulation" class="block text-sm font-medium text-gray-700 mb-1">Date de mise en circulation</label>
+                    <input type="date" id="date_mise_circulation" name="date_mise_circulation" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
                 </div>
                 <div>
                     <label for="date_derniere_revision" class="block text-sm font-medium text-gray-700 mb-1">Date dernière révision</label>
@@ -725,8 +766,8 @@ include '../includes/header.php';
                             <span id="view_kilometrage" class="text-sm text-gray-900"></span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-sm font-medium text-gray-500">Date d'achat:</span>
-                            <span id="view_date_achat" class="text-sm text-gray-900"></span>
+                            <span class="text-sm font-medium text-gray-500">Date de mise en circulation:</span>
+                            <span id="view_date_mise_circulation" class="text-sm text-gray-900"></span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-sm font-medium text-gray-500">Dernière révision:</span>
@@ -734,6 +775,7 @@ include '../includes/header.php';
                         </div>
                         <div class="flex justify-between">
                             <span class="text-sm font-medium text-gray-500">Prochain contrôle technique:</span>
+                            
                             <span id="view_date_prochain_ct" class="text-sm text-gray-900"></span>
                         </div>
                         <div class="flex justify-between">
@@ -797,7 +839,7 @@ include '../includes/header.php';
             </button>
         </div>
 
-        <form action="update.php" method="POST" class="p-6">
+        <form action="edit.php" method="POST" class="p-6">
             <input type="hidden" id="edit_id" name="id" value="">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -816,11 +858,51 @@ include '../includes/header.php';
                 <div>
                     <label for="edit_marque" class="block text-sm font-medium text-gray-700 mb-1">Marque</label>
                     <select id="edit_marque" name="marque" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
-                        <option value="">Sélectionner une marque</option>
-                        <?php foreach ($marques as $m): ?>
-                            <option value="<?php echo htmlspecialchars($m); ?>"><?php echo htmlspecialchars($m); ?></option>
-                        <?php endforeach; ?>
-                        <option value="autre">Autre</option>
+                        <option value="0">:: MARQUE ::</option>
+                        <option value="ABARTH">ABARTH</option>
+                        <option value="ALFA ROMEO">ALFA ROMEO</option>
+                        <option value="AUDI">AUDI</option>
+                        <option value="BMW">BMW</option>
+                        <option value="BYD">BYD</option>
+                        <option value="CHANGAN">CHANGAN</option>
+                        <option value="CHERY">CHERY</option>
+                        <option value="CITROEN">CITROEN</option>
+                        <option value="CUPRA">CUPRA</option>
+                        <option value="DACIA">DACIA</option>
+                        <option value="DFSK">DFSK</option>
+                        <option value="DS">DS</option>
+                        <option value="FIAT">FIAT</option>
+                        <option value="FORD">FORD</option>
+                        <option value="GEELY">GEELY</option>
+                        <option value="GWM">GWM</option>
+                        <option value="HONDA">HONDA</option>
+                        <option value="HYUNDAI">HYUNDAI</option>
+                        <option value="JAECOO">JAECOO</option>
+                        <option value="JAGUAR">JAGUAR</option>
+                        <option value="JEEP">JEEP</option>
+                        <option value="KIA">KIA</option>
+                        <option value="LAND ROVER">LAND ROVER</option>
+                        <option value="LEXUS">LEXUS</option>
+                        <option value="MAHINDRA">MAHINDRA</option>
+                        <option value="MASERATI">MASERATI</option>
+                        <option value="MAZDA">MAZDA</option>
+                        <option value="MERCEDES">MERCEDES</option>
+                        <option value="MG">MG</option>
+                        <option value="MINI">MINI</option>
+                        <option value="MITSUBISHI">MITSUBISHI</option>
+                        <option value="NISSAN">NISSAN</option>
+                        <option value="OMODA">OMODA</option>
+                        <option value="OPEL">OPEL</option>
+                        <option value="PEUGEOT">PEUGEOT</option>
+                        <option value="PORSCHE">PORSCHE</option>
+                        <option value="RENAULT">RENAULT</option>
+                        <option value="SEAT">SEAT</option>
+                        <option value="SERES">SERES</option>
+                        <option value="SKODA">SKODA</option>
+                        <option value="SUZUKI">SUZUKI</option>
+                        <option value="TOYOTA">TOYOTA</option>
+                        <option value="VOLKSWAGEN">VOLKSWAGEN</option>
+                        <option value="VOLVO">VOLVO</option>
                     </select>
                 </div>
                 <div>
@@ -855,8 +937,8 @@ include '../includes/header.php';
                     <input type="number" id="edit_puissance" name="puissance" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
-                    <label for="edit_date_achat" class="block text-sm font-medium text-gray-700 mb-1">Date d'achat</label>
-                    <input type="date" id="edit_date_achat" name="date_achat" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <label for="edit_date_mise_circulation" class="block text-sm font-medium text-gray-700 mb-1">Date de mise en circulation</label>
+                    <input type="date" id="edit_date_mise_circulation" name="date_mise_circulation" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
                     <label for="edit_date_derniere_revision" class="block text-sm font-medium text-gray-700 mb-1">Date dernière révision</label>
@@ -960,7 +1042,7 @@ include '../includes/header.php';
                 document.getElementById('view_email').textContent = data.email || '-';
                 
                 document.getElementById('view_kilometrage').textContent = data.kilometrage ? `${data.kilometrage} km` : '-';
-                document.getElementById('view_date_achat').textContent = data.date_achat || '-';
+                document.getElementById('view_date_mise_circulation').textContent = data.date_mise_circulation || '-';
                 document.getElementById('view_date_derniere_revision').textContent = data.date_derniere_revision || '-';
                 document.getElementById('view_date_prochain_ct').textContent = data.date_prochain_ct || '-';
                 
@@ -1076,7 +1158,7 @@ include '../includes/header.php';
                 document.getElementById('edit_couleur').value = data.couleur || '';
                 document.getElementById('edit_carburant').value = data.carburant || '';
                 document.getElementById('edit_puissance').value = data.puissance || '';
-                document.getElementById('edit_date_achat').value = data.date_achat || '';
+                document.getElementById('edit_date_mise_circulation').value = data.date_mise_circulation || '';
                 document.getElementById('edit_date_derniere_revision').value = data.date_derniere_revision || '';
                 document.getElementById('edit_date_prochain_ct').value = data.date_prochain_ct || '';
                 document.getElementById('edit_statut').value = data.statut || 'actif';

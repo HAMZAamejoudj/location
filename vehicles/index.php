@@ -298,13 +298,60 @@ try {
                             <option>Inactif</option>
                         </select>
                         <select class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        <option value="abarth" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'abarth') ? 'selected' : ''; ?>>ABARTH</option>
+        <option value="alfa_romeo" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'alfa_romeo') ? 'selected' : ''; ?>>ALFA ROMEO</option>
+        <option value="audi" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'audi') ? 'selected' : ''; ?>>AUDI</option>
+        <option value="bmw" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'bmw') ? 'selected' : ''; ?>>BMW</option>
+        <option value="byd" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'byd') ? 'selected' : ''; ?>>BYD</option>
+        <option value="changan" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'changan') ? 'selected' : ''; ?>>CHANGAN</option>
+        <option value="chery" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'chery') ? 'selected' : ''; ?>>CHERY</option>
+        <option value="citroen" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'citroen') ? 'selected' : ''; ?>>CITROEN</option>
+        <option value="cupra" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'cupra') ? 'selected' : ''; ?>>CUPRA</option>
+        <option value="dacia" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'dacia') ? 'selected' : ''; ?>>DACIA</option>
+        <option value="dfsk" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'dfsk') ? 'selected' : ''; ?>>DFSK</option>
+        <option value="ds" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'ds') ? 'selected' : ''; ?>>DS</option>
+        <option value="fiat" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'fiat') ? 'selected' : ''; ?>>FIAT</option>
+        <option value="ford" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'ford') ? 'selected' : ''; ?>>FORD</option>
+        <option value="geely" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'geely') ? 'selected' : ''; ?>>GEELY</option>
+        <option value="gwm" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'gwm') ? 'selected' : ''; ?>>GWM</option>
+        <option value="honda" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'honda') ? 'selected' : ''; ?>>HONDA</option>
+        <option value="hyundai" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'hyundai') ? 'selected' : ''; ?>>HYUNDAI</option>
+        <option value="jaecoo" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'jaecoo') ? 'selected' : ''; ?>>JAECOO</option>
+        <option value="jaguar" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'jaguar') ? 'selected' : ''; ?>>JAGUAR</option>
+        <option value="jeep" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'jeep') ? 'selected' : ''; ?>>JEEP</option>
+        <option value="kia" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'kia') ? 'selected' : ''; ?>>KIA</option>
+        <option value="land_rover" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'land_rover') ? 'selected' : ''; ?>>LAND ROVER</option>
+        <option value="lexus" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'lexus') ? 'selected' : ''; ?>>LEXUS</option>
+        <option value="mahindra" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mahindra') ? 'selected' : ''; ?>>MAHINDRA</option>
+        <option value="maserati" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'maserati') ? 'selected' : ''; ?>>MASERATI</option>
+        <option value="mazda" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mazda') ? 'selected' : ''; ?>>MAZDA</option>
+        <option value="mercedes" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mercedes') ? 'selected' : ''; ?>>MERCEDES</option>
+        <option value="mg" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mg') ? 'selected' : ''; ?>>MG</option>
+        <option value="mini" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mini') ? 'selected' : ''; ?>>MINI</option>
+        <option value="mitsubishi" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mitsubishi') ? 'selected' : ''; ?>>MITSUBISHI</option>
+        <option value="nissan" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'nissan') ? 'selected' : ''; ?>>NISSAN</option>
+        <option value="omoda" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'omoda') ? 'selected' : ''; ?>>OMODA</option>
+        <option value="opel" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'opel') ? 'selected' : ''; ?>>OPEL</option>
+        <option value="peugeot" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'peugeot') ? 'selected' : ''; ?>>PEUGEOT</option>
+        <option value="porsche" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'porsche') ? 'selected' : ''; ?>>PORSCHE</option>
+        <option value="renault" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'renault') ? 'selected' : ''; ?>>RENAULT</option>
+        <option value="seat" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'seat') ? 'selected' : ''; ?>>SEAT</option>
+        <option value="seres" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'seres') ? 'selected' : ''; ?>>SERES</option>
+        <option value="skoda" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'skoda') ? 'selected' : ''; ?>>SKODA</option>
+        <option value="suzuki" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'suzuki') ? 'selected' : ''; ?>>SUZUKI</option>
+        <option value="toyota" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'toyota') ? 'selected' : ''; ?>>TOYOTA</option>
+        <option value="volkswagen" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'volkswagen') ? 'selected' : ''; ?>>VOLKSWAGEN</option>
+        <option value="volvo" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'volvo') ? 'selected' : ''; ?>>VOLVO</option>
+        <option value="autre" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'autre') ? 'selected' : ''; ?>>Autre</option>
+    </select>
+                        <!-- <select class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option>Toutes les marques</option>
                             <option>Renault</option>
                             <option>Peugeot</option>
                             <option>Citroën</option>
                             <option>Volkswagen</option>
                             <option>BMW</option>
-                        </select>
+                        </select> -->
                     </div>
                 </div>
 
@@ -544,10 +591,65 @@ try {
                             <span class="text-sm font-medium text-gray-500">Immatriculation:</span>
                             <span id="view_immatriculation" class="text-sm text-gray-900">AB-123-CD</span>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm font-medium text-gray-500">Marque:</span>
-                            <span id="view_marque" class="text-sm text-gray-900">Renault</span>
-                        </div>
+                                            <div class="flex justify-between">
+                        <span class="text-sm font-medium text-gray-500">Marque:</span>
+                        <span id="view_marque" class="text-sm text-gray-900 font-medium">
+                            <?php
+                            // Tableau associatif des marques pour l'affichage formaté
+                            $marques = [
+                                'abarth' => 'ABARTH',
+                                'alfa_romeo' => 'ALFA ROMEO',
+                                'audi' => 'AUDI',
+                                'bmw' => 'BMW',
+                                'byd' => 'BYD',
+                                'changan' => 'CHANGAN',
+                                'chery' => 'CHERY',
+                                'citroen' => 'CITROEN',
+                                'cupra' => 'CUPRA',
+                                'dacia' => 'DACIA',
+                                'dfsk' => 'DFSK',
+                                'ds' => 'DS',
+                                'fiat' => 'FIAT',
+                                'ford' => 'FORD',
+                                'geely' => 'GEELY',
+                                'gwm' => 'GWM',
+                                'honda' => 'HONDA',
+                                'hyundai' => 'HYUNDAI',
+                                'jaecoo' => 'JAECOO',
+                                'jaguar' => 'JAGUAR',
+                                'jeep' => 'JEEP',
+                                'kia' => 'KIA',
+                                'land_rover' => 'LAND ROVER',
+                                'lexus' => 'LEXUS',
+                                'mahindra' => 'MAHINDRA',
+                                'maserati' => 'MASERATI',
+                                'mazda' => 'MAZDA',
+                                'mercedes' => 'MERCEDES',
+                                'mg' => 'MG',
+                                'mini' => 'MINI',
+                                'mitsubishi' => 'MITSUBISHI',
+                                'nissan' => 'NISSAN',
+                                'omoda' => 'OMODA',
+                                'opel' => 'OPEL',
+                                'peugeot' => 'PEUGEOT',
+                                'porsche' => 'PORSCHE',
+                                'renault' => 'RENAULT',
+                                'seat' => 'SEAT',
+                                'seres' => 'SERES',
+                                'skoda' => 'SKODA',
+                                'suzuki' => 'SUZUKI',
+                                'toyota' => 'TOYOTA',
+                                'volkswagen' => 'VOLKSWAGEN',
+                                'volvo' => 'VOLVO',
+                                'autre' => 'Autre'
+                            ];
+                            
+                            // Afficher la marque formatée si elle existe dans le tableau, sinon afficher la valeur brute
+                            echo isset($marques[$vehicle['marque']]) ? $marques[$vehicle['marque']] : ucfirst($vehicle['marque']);
+                            ?>
+                        </span>
+                    </div>
+
                         <div class="flex justify-between">
                             <span class="text-sm font-medium text-gray-500">Modèle:</span>
                             <span id="view_modele" class="text-sm text-gray-900">Clio</span>
@@ -709,17 +811,56 @@ try {
                     </select>
                 </div>
                 <div>
-                    <label for="edit_marque" class="block text-sm font-medium text-gray-700 mb-1">Marque</label>
-                    <select id="edit_marque" name="marque" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
-                        <option value="renault">Renault</option>
-                        <option value="peugeot">Peugeot</option>
-                        <option value="citroen">Citroën</option>
-                        <option value="volkswagen">Volkswagen</option>
-                        <option value="bmw">BMW</option>
-                        <option value="audi">Audi</option>
-                        <option value="mercedes">Mercedes</option>
-                    </select>
-                </div>
+    <label for="edit_marque" class="block text-sm font-medium text-gray-700 mb-1">Marque</label>
+    <select id="edit_marque" name="marque" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+        <option value="abarth" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'abarth') ? 'selected' : ''; ?>>ABARTH</option>
+        <option value="alfa_romeo" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'alfa_romeo') ? 'selected' : ''; ?>>ALFA ROMEO</option>
+        <option value="audi" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'audi') ? 'selected' : ''; ?>>AUDI</option>
+        <option value="bmw" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'bmw') ? 'selected' : ''; ?>>BMW</option>
+        <option value="byd" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'byd') ? 'selected' : ''; ?>>BYD</option>
+        <option value="changan" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'changan') ? 'selected' : ''; ?>>CHANGAN</option>
+        <option value="chery" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'chery') ? 'selected' : ''; ?>>CHERY</option>
+        <option value="citroen" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'citroen') ? 'selected' : ''; ?>>CITROEN</option>
+        <option value="cupra" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'cupra') ? 'selected' : ''; ?>>CUPRA</option>
+        <option value="dacia" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'dacia') ? 'selected' : ''; ?>>DACIA</option>
+        <option value="dfsk" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'dfsk') ? 'selected' : ''; ?>>DFSK</option>
+        <option value="ds" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'ds') ? 'selected' : ''; ?>>DS</option>
+        <option value="fiat" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'fiat') ? 'selected' : ''; ?>>FIAT</option>
+        <option value="ford" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'ford') ? 'selected' : ''; ?>>FORD</option>
+        <option value="geely" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'geely') ? 'selected' : ''; ?>>GEELY</option>
+        <option value="gwm" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'gwm') ? 'selected' : ''; ?>>GWM</option>
+        <option value="honda" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'honda') ? 'selected' : ''; ?>>HONDA</option>
+        <option value="hyundai" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'hyundai') ? 'selected' : ''; ?>>HYUNDAI</option>
+        <option value="jaecoo" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'jaecoo') ? 'selected' : ''; ?>>JAECOO</option>
+        <option value="jaguar" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'jaguar') ? 'selected' : ''; ?>>JAGUAR</option>
+        <option value="jeep" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'jeep') ? 'selected' : ''; ?>>JEEP</option>
+        <option value="kia" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'kia') ? 'selected' : ''; ?>>KIA</option>
+        <option value="land_rover" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'land_rover') ? 'selected' : ''; ?>>LAND ROVER</option>
+        <option value="lexus" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'lexus') ? 'selected' : ''; ?>>LEXUS</option>
+        <option value="mahindra" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mahindra') ? 'selected' : ''; ?>>MAHINDRA</option>
+        <option value="maserati" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'maserati') ? 'selected' : ''; ?>>MASERATI</option>
+        <option value="mazda" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mazda') ? 'selected' : ''; ?>>MAZDA</option>
+        <option value="mercedes" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mercedes') ? 'selected' : ''; ?>>MERCEDES</option>
+        <option value="mg" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mg') ? 'selected' : ''; ?>>MG</option>
+        <option value="mini" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mini') ? 'selected' : ''; ?>>MINI</option>
+        <option value="mitsubishi" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'mitsubishi') ? 'selected' : ''; ?>>MITSUBISHI</option>
+        <option value="nissan" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'nissan') ? 'selected' : ''; ?>>NISSAN</option>
+        <option value="omoda" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'omoda') ? 'selected' : ''; ?>>OMODA</option>
+        <option value="opel" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'opel') ? 'selected' : ''; ?>>OPEL</option>
+        <option value="peugeot" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'peugeot') ? 'selected' : ''; ?>>PEUGEOT</option>
+        <option value="porsche" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'porsche') ? 'selected' : ''; ?>>PORSCHE</option>
+        <option value="renault" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'renault') ? 'selected' : ''; ?>>RENAULT</option>
+        <option value="seat" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'seat') ? 'selected' : ''; ?>>SEAT</option>
+        <option value="seres" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'seres') ? 'selected' : ''; ?>>SERES</option>
+        <option value="skoda" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'skoda') ? 'selected' : ''; ?>>SKODA</option>
+        <option value="suzuki" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'suzuki') ? 'selected' : ''; ?>>SUZUKI</option>
+        <option value="toyota" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'toyota') ? 'selected' : ''; ?>>TOYOTA</option>
+        <option value="volkswagen" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'volkswagen') ? 'selected' : ''; ?>>VOLKSWAGEN</option>
+        <option value="volvo" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'volvo') ? 'selected' : ''; ?>>VOLVO</option>
+        <option value="autre" <?php echo (isset($vehicle['marque']) && $vehicle['marque'] == 'autre') ? 'selected' : ''; ?>>Autre</option>
+    </select>
+</div>
+
                 <div>
                     <label for="edit_modele" class="block text-sm font-medium text-gray-700 mb-1">Modèle</label>
                     <input type="text" id="edit_modele" name="modele" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" value="Clio" required>

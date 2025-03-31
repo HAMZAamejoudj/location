@@ -45,16 +45,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['type_client'] = 'Le type de client est requis';
     }
 
-    if (empty($_POST['nom'])) {
-        $errors['nom'] = 'Le nom est requis';
-    }
-
     $clientType = $_POST['type_client'] ?? '';
 
     // Validation spécifique au type de client
     if ($clientType == 'client') {
         if (empty($_POST['prenom'])) {
             $errors['prenom'] = 'Le prénom est requis pour un client';
+        }
+        if (empty($_POST['nom'])) {
+            $errors['nom'] = 'Le nom est requis';
         }
     } elseif ($clientType == 'societe') {
         if (empty($_POST['raison_sociale'])) {
@@ -106,15 +105,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $query = "INSERT INTO clients (type_client_id, nom, prenom, email, telephone, adresse, code_postal, ville, date_creation, notes) 
                           VALUES (:type_client, :nom, :prenom, :email, :telephone, :adresse, :code_postal, :ville, :date_creation, :notes)";
             } else {
-                $query = "INSERT INTO clients (type_client_id, nom, raison_sociale, registre_rcc, email, telephone, adresse, code_postal, ville, date_creation, notes, delai_paiement) 
-                          VALUES (:type_client, :nom, :raison_sociale, :registre_rcc, :email, :telephone, :adresse, :code_postal, :ville, :date_creation, :notes, :delai_paiement)";
+                $query = "INSERT INTO clients (type_client_id, raison_sociale, registre_rcc, email, telephone, adresse, code_postal, ville, date_creation, notes, delai_paiement) 
+                          VALUES (:type_client, :raison_sociale, :registre_rcc, :email, :telephone, :adresse, :code_postal, :ville, :date_creation, :notes, :delai_paiement)";
             }
     
             $stmt = $db->prepare($query);
     
             // Champs communs
             $stmt->bindParam(':type_client', $clientTypeId);
-            $stmt->bindParam(':nom', $_POST['nom']);
             $stmt->bindParam(':email', $_POST['email']);
             $stmt->bindParam(':telephone', $_POST['telephone']);
             $stmt->bindParam(':adresse', $_POST['adresse']);
@@ -126,6 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
             // Champs spécifiques
             if ($_POST['type_client'] == 'client') {
+                
+                $stmt->bindParam(':nom', $_POST['nom']);
                 $stmt->bindParam(':prenom', $_POST['prenom']);
             } else {
                 $stmt->bindParam(':raison_sociale', $_POST['raison_sociale']);
@@ -198,9 +198,9 @@ include $root_path . '/includes/header.php';
                             </div>
 
                             <!-- Nom -->
-                            <div>
+                            <div id="nom-container">
                                 <label for="nom" class="block text-sm font-medium text-gray-700">Nom <span class="text-red-500">*</span></label>
-                                <input type="text" id="nom" name="nom" value="<?php echo isset($_POST['nom']) ? htmlspecialchars($_POST['nom']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                <input type="text" id="nom" name="nom" value="<?php echo isset($_POST['nom']) ? htmlspecialchars($_POST['nom']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" >
                             </div>
 
                             <!-- Prénom (pour client) -->
@@ -295,6 +295,7 @@ include $root_path . '/includes/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     const typeClientSelect = document.getElementById('type_client');
     const prenomContainer = document.getElementById('prenom-container');
+    const nomContainer = document.getElementById('nom-container');
     const raisonSocialeContainer = document.getElementById('raison-sociale-container');
     const registreRCCContainer = document.getElementById('registre-rcc-container');
     const delaiPaiementContainer = document.getElementById('delai-paiement-container');
@@ -309,16 +310,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (selectedType === 'client') {
             prenomContainer.classList.remove('hidden');
+            nomContainer.classList.remove('hidden');
             raisonSocialeContainer.classList.add('hidden');
             registreRCCContainer.classList.add('hidden');
             delaiPaiementContainer.classList.add('hidden');
         } else if (selectedType === 'societe') {
             prenomContainer.classList.add('hidden');
+            nomContainer.classList.add('hidden');
             raisonSocialeContainer.classList.remove('hidden');
             registreRCCContainer.classList.remove('hidden');
             delaiPaiementContainer.classList.remove('hidden');
         } else {
             prenomContainer.classList.add('hidden');
+            nomContainer.classList.add('hidden');
             raisonSocialeContainer.classList.add('hidden');
             registreRCCContainer.classList.add('hidden');
             delaiPaiementContainer.classList.add('hidden');

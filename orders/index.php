@@ -286,13 +286,13 @@ include $root_path . '/includes/header.php';
                                 <option value="Annulée" <?php echo (isset($_GET['statut']) && $_GET['statut'] == 'Annulée') ? 'selected' : ''; ?>>Annulée</option>
                             </select>
                             <select name="client_id" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Tous les clients</option>
-                                <?php foreach ($clients as $client): ?>
-                                    <option value="<?php echo $client['id']; ?>" <?php echo (isset($_GET['client_id']) && $_GET['client_id'] == $client['id']) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($client['Nom_Client']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+    <option value="">Tous les clients</option>
+    <?php foreach ($clients as $client): ?>
+        <option value="<?php echo $client['id']; ?>" <?php echo (isset($_GET['client_id']) && $_GET['client_id'] == $client['id']) ? 'selected' : ''; ?>>
+            <?php echo htmlspecialchars($client['Nom_Client'] ?? ''); ?>
+        </option>
+    <?php endforeach; ?>
+</select>
                             <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200">
                                 Filtrer
                             </button>
@@ -323,53 +323,60 @@ include $root_path . '/includes/header.php';
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <?php foreach ($commandes as $commande): ?>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($commande['Numero_Commande']); ?></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($commande['Client_Nom']); ?></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo date('d/m/Y', strtotime($commande['Date_Commande'])); ?></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo date('d/m/Y', strtotime($commande['Date_Livraison_Prevue'])); ?></td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <?php
-                                        $statusClass = '';
-                                        switch ($commande['Statut_Commande']) {
-                                            case 'En attente':
-                                                $statusClass = 'bg-yellow-100 text-yellow-800';
-                                                break;
-                                            case 'En cours':
-                                                $statusClass = 'bg-blue-100 text-blue-800';
-                                                break;
-                                            case 'Livrée':
-                                                $statusClass = 'bg-green-100 text-green-800';
-                                                break;
-                                            case 'Annulée':
-                                                $statusClass = 'bg-red-100 text-red-800';
-                                                break;
-                                            default:
-                                                $statusClass = 'bg-gray-100 text-gray-800'; // Statut par défaut
-                                                break;
-                                        }
-                                        ?>
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?php echo $statusClass; ?>">
-                                            <?php echo htmlspecialchars($commande['Statut_Commande']); ?>
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo number_format($commande['Montant_Total_HT'], 2, ',', ' ') . ' DH'; ?></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div class="flex space-x-2">
-                                            <a href="view.php?id=<?php echo $commande['ID_Commande']; ?>" class="text-blue-600 hover:text-blue-900">Voir</a>
-                                            <a href="edit.php?id=<?php echo $commande['ID_Commande']; ?>" class="text-indigo-600 hover:text-indigo-900">Modifier</a>
-                                            <button onclick="deleteCommande(<?php echo $commande['ID_Commande']; ?>)" class="text-red-600 hover:text-red-900">Supprimer</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                            <?php if (empty($commandes)): ?>
-                                <tr>
-                                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">Aucune commande trouvée</td>
-                                </tr>
-                            <?php endif; ?>
-                        </tbody>
+    <?php foreach ($commandes as $commande): ?>
+        <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($commande['Numero_Commande'] ?? ''); ?></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($commande['Client_Nom'] ?? ''); ?></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <?php echo !empty($commande['Date_Commande']) ? date('d/m/Y', strtotime($commande['Date_Commande'])) : '-'; ?>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <?php echo !empty($commande['Date_Livraison_Prevue']) ? date('d/m/Y', strtotime($commande['Date_Livraison_Prevue'])) : '-'; ?>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <?php
+                $statusClass = '';
+                switch ($commande['Statut_Commande']) {
+                    case 'En attente':
+                        $statusClass = 'bg-yellow-100 text-yellow-800';
+                        break;
+                    case 'En cours':
+                        $statusClass = 'bg-blue-100 text-blue-800';
+                        break;
+                    case 'Livrée':
+                        $statusClass = 'bg-green-100 text-green-800';
+                        break;
+                    case 'Annulée':
+                        $statusClass = 'bg-red-100 text-red-800';
+                        break;
+                    default:
+                        $statusClass = 'bg-gray-100 text-gray-800'; // Statut par défaut
+                        break;
+                }
+                ?>
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?php echo $statusClass; ?>">
+                    <?php echo htmlspecialchars($commande['Statut_Commande'] ?? ''); ?>
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <?php echo number_format($commande['Montant_Total_HT'] ?? 0, 2, ',', ' ') . ' DH'; ?>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <div class="flex space-x-2">
+                    <a href="view.php?id=<?php echo $commande['ID_Commande']; ?>" class="text-blue-600 hover:text-blue-900">Voir</a>
+                    <a href="edit.php?id=<?php echo $commande['ID_Commande']; ?>" class="text-indigo-600 hover:text-indigo-900">Modifier</a>
+                    <button onclick="deleteCommande(<?php echo $commande['ID_Commande']; ?>)" class="text-red-600 hover:text-red-900">Supprimer</button>
+                </div>
+            </td>
+        </tr>
+    <?php endforeach; ?>
+    <?php if (empty($commandes)): ?>
+        <tr>
+            <td colspan="7" class="px-6 py-4 text-center text-gray-500">Aucune commande trouvée</td>
+        </tr>
+    <?php endif; ?>
+</tbody>
+
                     </table>
                 </div>
 

@@ -67,7 +67,7 @@ $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validation des données
-    if (empty($_POST['nom'])) {
+    if ($client['type_client'] === 'client' && empty($_POST['nom'])) {
         $errors['nom'] = 'Le nom est requis';
     }
 
@@ -118,7 +118,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           WHERE id = :id";
             } else {
                 $query = "UPDATE clients SET 
-                          nom = :nom, 
                           raison_sociale = :raison_sociale, 
                           registre_rcc = :registre_rcc, 
                           email = :email, 
@@ -134,8 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare($query);
 
             // Binder les paramètres communs
-            $stmt->bindParam(':id', $client_id);
-            $stmt->bindParam(':nom', $_POST['nom']);
+            $stmt->bindParam(':id', $client_id);            
             $stmt->bindParam(':email', $_POST['email']);
             $stmt->bindParam(':telephone', $_POST['telephone']);
             $stmt->bindParam(':adresse', $_POST['adresse']);
@@ -145,6 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Binder les paramètres spécifiques
             if ($client['type_client'] === 'client') {
+                $stmt->bindParam(':nom', $_POST['nom']);
                 $stmt->bindParam(':prenom', $_POST['prenom']);
             } else {
                 $stmt->bindParam(':raison_sociale', $_POST['raison_sociale']);
@@ -214,13 +213,14 @@ include $root_path . '/includes/header.php';
                             </div>
 
                             <!-- Nom -->
+                            <?php if ($client['type_client'] === 'client'): ?>
                             <div>
                                 <label for="nom" class="block text-sm font-medium text-gray-700">Nom <span class="text-red-500">*</span></label>
                                 <input type="text" id="nom" name="nom" value="<?php echo htmlspecialchars($client['nom']); ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
                             </div>
 
                             <!-- Champs spécifiques -->
-                            <?php if ($client['type_client'] === 'client'): ?>
+                           
                                 <div id="prenom-container">
                                     <label for="prenom" class="block text-sm font-medium text-gray-700">Prénom <span class="text-red-500">*</span></label>
                                     <input type="text" id="prenom" name="prenom" value="<?php echo htmlspecialchars($client['prenom']); ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
@@ -367,6 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (registreRCCField) registreRCCField.parentElement.style.display = 'none';
         if (delaiPaiementSelect) delaiPaiementSelect.parentElement.parentElement.style.display = 'none';
     } else if (typeClient === 'societe') {
+        if (nomField) nomField.parentElement.style.display = 'none';
         if (prenomField) prenomField.parentElement.style.display = 'none';
         if (raisonSocialeField) raisonSocialeField.parentElement.style.display = 'block';
         if (registreRCCField) registreRCCField.parentElement.style.display = 'block';

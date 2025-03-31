@@ -48,9 +48,10 @@ switch ($action) {
 // Fonction pour créer une offre
 function createOffre($db) {
     // Valider les données
-    $code = filter_input(INPUT_POST, 'code', FILTER_SANITIZE_STRING);
-    $nom = filter_input(INPUT_POST, 'nom', FILTER_SANITIZE_STRING);
-    $date_debut = filter_input(INPUT_POST, 'date_debut', FILTER_SANITIZE_STRING);
+    // Remplacement de FILTER_SANITIZE_STRING (déprécié) par htmlspecialchars
+    $code = htmlspecialchars(trim($_POST['code'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $nom = htmlspecialchars(trim($_POST['nom'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $date_debut = htmlspecialchars(trim($_POST['date_debut'] ?? ''), ENT_QUOTES, 'UTF-8');
     $valeur_remise = filter_input(INPUT_POST, 'valeur_remise', FILTER_VALIDATE_FLOAT);
     
     if (empty($code) || empty($nom) || empty($date_debut) || $valeur_remise <= 0) {
@@ -78,12 +79,12 @@ function createOffre($db) {
     }
     
     // Récupérer les autres champs
-    $description = filter_input(INPUT_POST, 'description', FILTER_SANITIZE_STRING);
+    $description = htmlspecialchars(trim($_POST['description'] ?? ''), ENT_QUOTES, 'UTF-8');
     $categorie_id = filter_input(INPUT_POST, 'categorie_id', FILTER_VALIDATE_INT) ?: null;
-    $date_fin = filter_input(INPUT_POST, 'date_fin', FILTER_SANITIZE_STRING) ?: null;
-    $type_remise = filter_input(INPUT_POST, 'type_remise', FILTER_SANITIZE_STRING);
+    $date_fin = htmlspecialchars(trim($_POST['date_fin'] ?? ''), ENT_QUOTES, 'UTF-8') ?: null;
+    $type_remise = htmlspecialchars(trim($_POST['type_remise'] ?? ''), ENT_QUOTES, 'UTF-8');
     $priorite = filter_input(INPUT_POST, 'priorite', FILTER_VALIDATE_INT) ?: 0;
-    $conditions = filter_input(INPUT_POST, 'conditions', FILTER_SANITIZE_STRING);
+    $conditions = htmlspecialchars(trim($_POST['conditions'] ?? ''), ENT_QUOTES, 'UTF-8');
     $actif = filter_input(INPUT_POST, 'actif', FILTER_VALIDATE_INT) ?: 1;
     
     // Gérer le téléchargement de l'image
@@ -159,6 +160,7 @@ function createOffre($db) {
         setFlashMessage('error', 'Erreur de base de données: ' . $e->getMessage());
     }
     
+    // Redirection
     header('Location: index.php');
     exit;
 }
@@ -175,9 +177,9 @@ function updateOffre($db) {
     }
     
     // Valider les données obligatoires
-    $code = filter_input(INPUT_POST, 'code', FILTER_SANITIZE_STRING);
-    $nom = filter_input(INPUT_POST, 'nom', FILTER_SANITIZE_STRING);
-    $date_debut = filter_input(INPUT_POST, 'date_debut', FILTER_SANITIZE_STRING);
+    $code = htmlspecialchars(trim($_POST['code'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $nom = htmlspecialchars(trim($_POST['nom'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $date_debut = htmlspecialchars(trim($_POST['date_debut'] ?? ''), ENT_QUOTES, 'UTF-8');
     $valeur_remise = filter_input(INPUT_POST, 'valeur_remise', FILTER_VALIDATE_FLOAT);
     
     if (empty($code) || empty($nom) || empty($date_debut) || $valeur_remise <= 0) {
@@ -206,12 +208,12 @@ function updateOffre($db) {
     }
     
     // Récupérer les autres champs
-    $description = filter_input(INPUT_POST, 'description', FILTER_SANITIZE_STRING);
+    $description = htmlspecialchars(trim($_POST['description'] ?? ''), ENT_QUOTES, 'UTF-8');
     $categorie_id = filter_input(INPUT_POST, 'categorie_id', FILTER_VALIDATE_INT) ?: null;
-    $date_fin = filter_input(INPUT_POST, 'date_fin', FILTER_SANITIZE_STRING) ?: null;
-    $type_remise = filter_input(INPUT_POST, 'type_remise', FILTER_SANITIZE_STRING);
+    $date_fin = htmlspecialchars(trim($_POST['date_fin'] ?? ''), ENT_QUOTES, 'UTF-8') ?: null;
+    $type_remise = htmlspecialchars(trim($_POST['type_remise'] ?? ''), ENT_QUOTES, 'UTF-8');
     $priorite = filter_input(INPUT_POST, 'priorite', FILTER_VALIDATE_INT) ?: 0;
-    $conditions = filter_input(INPUT_POST, 'conditions', FILTER_SANITIZE_STRING);
+    $conditions = htmlspecialchars(trim($_POST['conditions'] ?? ''), ENT_QUOTES, 'UTF-8');
     $actif = filter_input(INPUT_POST, 'actif', FILTER_VALIDATE_INT) ?: 0;
     
     try {

@@ -61,19 +61,25 @@ if (!in_array($active_tab, ['client', 'societe'])) {
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $search_condition = '';
 if (!empty($search)) {
-    $search_condition = " AND (
-        c.nom LIKE :search OR 
-        c.email LIKE :search OR 
-        c.telephone LIKE :search OR 
-        c.ville LIKE :search";
-    
+    // Adapter les conditions de recherche selon le type de client
     if ($active_tab == 'client') {
-        $search_condition .= " OR c.prenom LIKE :search";
+        $search_condition = " AND (
+            c.nom LIKE :search OR 
+            c.prenom LIKE :search OR
+            c.email LIKE :search OR 
+            c.telephone LIKE :search OR 
+            c.ville LIKE :search
+        )";
     } else {
-        $search_condition .= " OR c.raison_sociale LIKE :search OR c.registre_rcc LIKE :search";
+        // Pour les sociétés, ne pas inclure le prénom/nom dans la recherche
+        $search_condition = " AND (
+            c.raison_sociale LIKE :search OR 
+            c.registre_rcc LIKE :search OR
+            c.email LIKE :search OR 
+            c.telephone LIKE :search OR 
+            c.ville LIKE :search
+        )";
     }
-    
-    $search_condition .= ")";
 }
 
 // Récupérer le nombre total de clients selon le type
@@ -93,15 +99,23 @@ $total_clients = $total_result['total'];
 $total_pages = ceil($total_clients / $clients_per_page);
 
 // Récupérer les clients pour la page courante selon le type
-$query = "SELECT c.id, c.nom, 
-                 " . ($active_tab == 'client' ? "c.prenom," : "c.raison_sociale, c.registre_rcc,") . "
-                 c.adresse, c.code_postal, c.ville, c.telephone, c.email, c.date_creation, c.notes,
-                 (SELECT COUNT(*) FROM vehicules v WHERE v.client_id = c.id) AS nb_vehicules
-          FROM clients c 
-          JOIN type_client tc ON c.type_client_id = tc.id 
-          WHERE tc.type = :type_client" . $search_condition . "
-          ORDER BY c.date_creation DESC
-          LIMIT :limit OFFSET :offset";
+if ($active_tab == 'client') {
+    $query = "SELECT c.id, c.nom, c.prenom, c.adresse, c.code_postal, c.ville, c.telephone, c.email, c.date_creation, c.notes,
+                   (SELECT COUNT(*) FROM vehicules v WHERE v.client_id = c.id) AS nb_vehicules
+              FROM clients c 
+              JOIN type_client tc ON c.type_client_id = tc.id 
+              WHERE tc.type = :type_client" . $search_condition . "
+              ORDER BY c.date_creation DESC
+              LIMIT :limit OFFSET :offset";
+} else {
+    $query = "SELECT c.id, c.nom, c.prenom, c.raison_sociale, c.registre_rcc, c.adresse, c.code_postal, c.ville, c.telephone, c.email, c.date_creation, c.notes,
+                   (SELECT COUNT(*) FROM vehicules v WHERE v.client_id = c.id) AS nb_vehicules
+              FROM clients c 
+              JOIN type_client tc ON c.type_client_id = tc.id 
+              WHERE tc.type = :type_client" . $search_condition . "
+              ORDER BY c.date_creation DESC
+              LIMIT :limit OFFSET :offset";
+}
 
 $stmt = $db->prepare($query);
 $stmt->bindParam(':type_client', $active_tab, PDO::PARAM_STR);
@@ -144,7 +158,9 @@ include $root_path . '/includes/header.php';
                     <form action="" method="GET" class="mb-4 md:mb-0">
                         <input type="hidden" name="tab" value="<?php echo $active_tab; ?>">
                         <div class="relative">
-                            <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Rechercher un client..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" 
+                                placeholder="<?php echo $active_tab == 'client' ? 'Rechercher un client par nom, prénom, email...' : 'Rechercher une société par raison sociale, RCC, email...'; ?>" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             <button type="submit" class="absolute right-0 top-0 h-full px-4 text-gray-600 hover:text-indigo-500">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -154,11 +170,11 @@ include $root_path . '/includes/header.php';
                     </form>
                 </div>
                 <div class="flex space-x-3">
-                    <a href="create.php" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center">
+                    <a href="create.php<?php echo $active_tab == 'societe' ? '?type=societe' : ''; ?>" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                         </svg>
-                        Ajouter un client
+                        Ajouter <?php echo $active_tab == 'client' ? 'un client' : 'une société'; ?>
                     </a>
                     <button type="button" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center">
                         <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -289,9 +305,9 @@ include $root_path . '/includes/header.php';
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Registre RCC
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                 <!--    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Contact
-                                    </th>
+                                    </th> -->
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Adresse
                                     </th>
@@ -317,16 +333,33 @@ include $root_path . '/includes/header.php';
                                                 <div class="flex items-center">
                                                     <div class="flex-shrink-0 h-10 w-10">
                                                         <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
-                                                            <?php echo substr($client['raison_sociale'], 0, 1); ?>
+                                                            <?php 
+                                                            // Générer des initiales pour la société
+                                                            $words = explode(' ', $client['raison_sociale']);
+                                                            $initials = '';
+                                                            foreach ($words as $word) {
+                                                                if (!empty($word)) {
+                                                                    $initials .= substr($word, 0, 1);
+                                                                    if (strlen($initials) >= 2) break;
+                                                                }
+                                                            }
+                                                            // Si on n'a pas assez d'initiales, compléter
+                                                            if (strlen($initials) < 2 && !empty($client['raison_sociale'])) {
+                                                                $initials = substr($client['raison_sociale'], 0, 2);
+                                                            }
+                                                            echo htmlspecialchars(strtoupper($initials));
+                                                            ?>
                                                         </div>
                                                     </div>
                                                     <div class="ml-4">
                                                         <div class="text-sm font-medium text-gray-900">
                                                             <?php echo htmlspecialchars($client['raison_sociale']); ?>
                                                         </div>
-                                                        <div class="text-sm text-gray-500">
-                                                            <?php echo htmlspecialchars($client['nom']); ?>
+                                                       <!--  <?php if (!empty($client['prenom']) || !empty($client['nom'])): ?>
+                                                        <div class="text-xs text-gray-500">
+                                                            Contact: <?php echo htmlspecialchars(trim($client['prenom'] . ' ' . $client['nom'])); ?>
                                                         </div>
+                                                        <?php endif; ?> -->
                                                     </div>
                                                 </div>
                                             </td>
@@ -392,6 +425,7 @@ include $root_path . '/includes/header.php';
                     <div class="flex space-x-2">
                         <!-- Bouton Précédent -->
                         <?php if ($current_page > 1): ?>
+                            
                             <a href="?tab=<?php echo $active_tab; ?>&page=<?php echo $current_page - 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>" 
                                class="px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50">
                                 Précédent
@@ -455,7 +489,7 @@ include $root_path . '/includes/header.php';
             <h3 class="text-lg font-semibold text-gray-900">Confirmation de suppression</h3>
         </div>
         <div class="px-6 py-4">
-            <p class="text-gray-700">Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.</p>
+            <p class="text-gray-700">Êtes-vous sûr de vouloir supprimer ce <?php echo $active_tab == 'client' ? 'client' : 'cette société'; ?> ? Cette action est irréversible.</p>
         </div>
         <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
             <button type="button" onclick="cancelDelete()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition">
@@ -493,4 +527,3 @@ include $root_path . '/includes/header.php';
 </script>
 
 <?php include $root_path . '/includes/footer.php'; ?>
-

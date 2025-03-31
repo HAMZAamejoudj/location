@@ -69,8 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         try {
             // Préparer la requête d'insertion
-            $query = "INSERT INTO vehicules (immatriculation, client_id, marque, modele, annee, kilometrage, couleur, carburant, puissance, date_achat, date_derniere_revision, date_prochain_ct, statut, notes,date_creation) 
-                     VALUES (:immatriculation, :client_id, :marque, :modele, :annee, :kilometrage, :couleur, :carburant, :puissance, :date_achat, :date_derniere_revision, :date_prochain_ct, :statut, :notes,:date_creation)";
+            $query = "INSERT INTO vehicules (immatriculation, client_id, marque, modele, annee, kilometrage, couleur, carburant, puissance, date_mise_circulation, date_derniere_revision, date_prochain_ct, statut, notes,date_creation) 
+                     VALUES (:immatriculation, :client_id, :marque, :modele, :annee, :kilometrage, :couleur, :carburant, :puissance, :date_mise_circulation, :date_derniere_revision, :date_prochain_ct, :statut, :notes,:date_creation)";
             
             $stmt = $db->prepare($query);
             
@@ -84,8 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bindParam(':couleur', $_POST['couleur']);
             $stmt->bindParam(':carburant', $_POST['carburant']);
             $stmt->bindParam(':puissance', $_POST['puissance']);
-            $date_achat = date('Y-m-d', strtotime($_POST['date_achat']));
-            $stmt->bindParam(':date_achat', $date_achat);
+            $date_mise_circulation = date('Y-m-d', strtotime($_POST['date_mise_circulation']));
+            $stmt->bindParam(':date_mise_circulation', $date_mise_circulation);
             $date_derniere_revision = date('Y-m-d', strtotime($_POST['date_derniere_revision']));
             $stmt->bindParam(':date_derniere_revision', $date_derniere_revision);            
             $date_prochain_ct = date('Y-m-d', strtotime($_POST['date_prochain_ct']));
@@ -210,24 +210,58 @@ include $root_path . '/includes/header.php';
                             <div>
                                 <label for="marque" class="block text-sm font-medium text-gray-700 mb-1">Marque <span class="text-red-500">*</span></label>
                                 <select id="marque" name="marque" class="w-full px-4 py-2 border <?php echo isset($errors['marque']) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
-                                    <option value="">Sélectionner une marque</option>
-                                    <option value="renault" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'renault') ? 'selected' : ''; ?>>Renault</option>
-                                    <option value="peugeot" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'peugeot') ? 'selected' : ''; ?>>Peugeot</option>
-                                    <option value="citroen" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'citroen') ? 'selected' : ''; ?>>Citroën</option>
-                                    <option value="volkswagen" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'volkswagen') ? 'selected' : ''; ?>>Volkswagen</option>
+                                    <option value="">:: MARQUE ::</option>
+                                    <option value="abarth" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'abarth') ? 'selected' : ''; ?>>ABARTH</option>
+                                    <option value="alfa_romeo" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'alfa_romeo') ? 'selected' : ''; ?>>ALFA ROMEO</option>
+                                    <option value="audi" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'audi') ? 'selected' : ''; ?>>AUDI</option>
                                     <option value="bmw" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'bmw') ? 'selected' : ''; ?>>BMW</option>
-                                    <option value="audi" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'audi') ? 'selected' : ''; ?>>Audi</option>
-                                    <option value="mercedes" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'mercedes') ? 'selected' : ''; ?>>Mercedes</option>
-                                    <option value="toyota" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'toyota') ? 'selected' : ''; ?>>Toyota</option>
-                                    <option value="ford" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'ford') ? 'selected' : ''; ?>>Ford</option>
-                                    <option value="opel" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'opel') ? 'selected' : ''; ?>>Opel</option>
-                                    <option value="fiat" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'fiat') ? 'selected' : ''; ?>>Fiat</option>
+                                    <option value="byd" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'byd') ? 'selected' : ''; ?>>BYD</option>
+                                    <option value="changan" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'changan') ? 'selected' : ''; ?>>CHANGAN</option>
+                                    <option value="chery" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'chery') ? 'selected' : ''; ?>>CHERY</option>
+                                    <option value="citroen" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'citroen') ? 'selected' : ''; ?>>CITROEN</option>
+                                    <option value="cupra" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'cupra') ? 'selected' : ''; ?>>CUPRA</option>
+                                    <option value="dacia" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'dacia') ? 'selected' : ''; ?>>DACIA</option>
+                                    <option value="dfsk" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'dfsk') ? 'selected' : ''; ?>>DFSK</option>
+                                    <option value="ds" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'ds') ? 'selected' : ''; ?>>DS</option>
+                                    <option value="fiat" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'fiat') ? 'selected' : ''; ?>>FIAT</option>
+                                    <option value="ford" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'ford') ? 'selected' : ''; ?>>FORD</option>
+                                    <option value="geely" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'geely') ? 'selected' : ''; ?>>GEELY</option>
+                                    <option value="gwm" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'gwm') ? 'selected' : ''; ?>>GWM</option>
+                                    <option value="honda" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'honda') ? 'selected' : ''; ?>>HONDA</option>
+                                    <option value="hyundai" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'hyundai') ? 'selected' : ''; ?>>HYUNDAI</option>
+                                    <option value="jaecoo" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'jaecoo') ? 'selected' : ''; ?>>JAECOO</option>
+                                    <option value="jaguar" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'jaguar') ? 'selected' : ''; ?>>JAGUAR</option>
+                                    <option value="jeep" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'jeep') ? 'selected' : ''; ?>>JEEP</option>
+                                    <option value="kia" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'kia') ? 'selected' : ''; ?>>KIA</option>
+                                    <option value="land_rover" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'land_rover') ? 'selected' : ''; ?>>LAND ROVER</option>
+                                    <option value="lexus" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'lexus') ? 'selected' : ''; ?>>LEXUS</option>
+                                    <option value="mahindra" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'mahindra') ? 'selected' : ''; ?>>MAHINDRA</option>
+                                    <option value="maserati" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'maserati') ? 'selected' : ''; ?>>MASERATI</option>
+                                    <option value="mazda" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'mazda') ? 'selected' : ''; ?>>MAZDA</option>
+                                    <option value="mercedes" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'mercedes') ? 'selected' : ''; ?>>MERCEDES</option>
+                                    <option value="mg" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'mg') ? 'selected' : ''; ?>>MG</option>
+                                    <option value="mini" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'mini') ? 'selected' : ''; ?>>MINI</option>
+                                    <option value="mitsubishi" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'mitsubishi') ? 'selected' : ''; ?>>MITSUBISHI</option>
+                                    <option value="nissan" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'nissan') ? 'selected' : ''; ?>>NISSAN</option>
+                                    <option value="omoda" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'omoda') ? 'selected' : ''; ?>>OMODA</option>
+                                    <option value="opel" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'opel') ? 'selected' : ''; ?>>OPEL</option>
+                                    <option value="peugeot" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'peugeot') ? 'selected' : ''; ?>>PEUGEOT</option>
+                                    <option value="porsche" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'porsche') ? 'selected' : ''; ?>>PORSCHE</option>
+                                    <option value="renault" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'renault') ? 'selected' : ''; ?>>RENAULT</option>
+                                    <option value="seat" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'seat') ? 'selected' : ''; ?>>SEAT</option>
+                                    <option value="seres" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'seres') ? 'selected' : ''; ?>>SERES</option>
+                                    <option value="skoda" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'skoda') ? 'selected' : ''; ?>>SKODA</option>
+                                    <option value="suzuki" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'suzuki') ? 'selected' : ''; ?>>SUZUKI</option>
+                                    <option value="toyota" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'toyota') ? 'selected' : ''; ?>>TOYOTA</option>
+                                    <option value="volkswagen" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'volkswagen') ? 'selected' : ''; ?>>VOLKSWAGEN</option>
+                                    <option value="volvo" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'volvo') ? 'selected' : ''; ?>>VOLVO</option>
                                     <option value="autre" <?php echo (isset($_POST['marque']) && $_POST['marque'] == 'autre') ? 'selected' : ''; ?>>Autre</option>
                                 </select>
                                 <?php if (isset($errors['marque'])): ?>
                                     <p class="text-red-500 text-xs mt-1"><?php echo $errors['marque']; ?></p>
                                 <?php endif; ?>
                             </div>
+
                             
                             <!-- Modèle -->
                             <div>
@@ -283,8 +317,8 @@ include $root_path . '/includes/header.php';
                             
                             <!-- Date d'achat -->
                             <div>
-                                <label for="date_achat" class="block text-sm font-medium text-gray-700 mb-1">Date d'achat</label>
-                                <input type="date" id="date_achat" name="date_achat" value="<?php echo isset($_POST['date_achat']) ? htmlspecialchars($_POST['date_achat']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <label for="date_mise_circulation" class="block text-sm font-medium text-gray-700 mb-1">Date d'achat</label>
+                                <input type="date" id="date_mise_circulation" name="date_mise_circulation" value="<?php echo isset($_POST['date_mise_circulation']) ? htmlspecialchars($_POST['date_mise_circulation']) : ''; ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                             </div>
                             
                             <!-- Date dernière révision -->

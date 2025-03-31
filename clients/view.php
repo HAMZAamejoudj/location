@@ -67,6 +67,17 @@ if (!$client) {
 // Ajouter la date de création formatée pour l'affichage
 $client['date_creation_formatted'] = date('d/m/Y', strtotime($client['date_creation']));
 
+// Préparer le nom d'affichage du client selon son type
+if ($client['type_client_id'] == 2) {
+    // Pour une société, utiliser la raison sociale comme nom principal
+    $client['display_name'] = $client['raison_sociale'];
+    // Mais garder aussi le nom du contact si disponible
+    $client['contact_name'] = trim($client['prenom'] . ' ' . $client['nom']);
+} else {
+    // Pour un particulier, utiliser prénom + nom
+    $client['display_name'] = trim($client['prenom'] . ' ' . $client['nom']);
+}
+
 // Récupérer les véhicules du client
 $stmt = $conn->prepare("SELECT * FROM vehicules WHERE client_id = ?");
 $stmt->bindParam(1, $client_id, PDO::PARAM_INT);
@@ -112,8 +123,6 @@ if (!empty($interventions)) {
         }
     }
 }
-
-
 
 // Déterminer la date de la dernière visite (dernière intervention)
 $derniere_visite = !empty($interventions) ? $interventions[0]['date_creation'] : $client['date_creation'];
@@ -166,18 +175,36 @@ include $root_path . '/includes/header.php';
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between">
                         <div class="flex items-center mb-4 md:mb-0">
                             <div class="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xl font-semibold mr-4">
-                                <?php echo substr($client['prenom'], 0, 1) . substr($client['nom'], 0, 1); ?>
+                                <?php 
+                                // Initiales basées sur le nom d'affichage
+                                if ($client['type_client_id'] == 2) {
+                                    // Pour une société, utiliser les initiales de la raison sociale
+                                    $words = explode(' ', $client['raison_sociale']);
+                                    $initials = '';
+                                    foreach ($words as $word) {
+                                        if (!empty($word)) {
+                                            $initials .= substr($word, 0, 1);
+                                            if (strlen($initials) >= 2) break;
+                                        }
+                                    }
+                                    // Si on n'a pas assez d'initiales, compléter
+                                    if (strlen($initials) < 2 && !empty($client['raison_sociale'])) {
+                                        $initials = substr($client['raison_sociale'], 0, 2);
+                                    }
+                                    echo htmlspecialchars(strtoupper($initials));
+                                } else {
+                                    // Pour un particulier, utiliser l'initiale du prénom et du nom
+                                    echo htmlspecialchars(substr($client['prenom'], 0, 1) . substr($client['nom'], 0, 1));
+                                }
+                                ?>
                             </div>
                             <div>
                                 <h2 class="text-2xl font-semibold text-gray-800">
-                                    <?php 
-                                    if ($client['type_client_id'] == 2) {
-                                        echo htmlspecialchars($client['raison_sociale']);
-                                    } else {
-                                        echo htmlspecialchars($client['prenom'] . ' ' . $client['nom']);
-                                    }
-                                    ?>
+                                    <?php echo htmlspecialchars($client['display_name']); ?>
                                 </h2>
+                               <!--  <?php if ($client['type_client_id'] == 2 && !empty($client['contact_name'])): ?>
+                                <p class="text-gray-600">Contact: <?php echo htmlspecialchars($client['contact_name']); ?></p>
+                                <?php endif; ?> -->
                                 <p class="text-gray-600">Client depuis le <?php echo date('d/m/Y', strtotime($client['date_creation'])); ?></p>
                                 <div class="flex items-center mt-1">
                                     <span class="px-2 py-1 text-xs rounded-full <?php echo strtotime($derniere_visite) > strtotime('-3 months') ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?> mr-2">
@@ -186,6 +213,15 @@ include $root_path . '/includes/header.php';
                                     <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
                                         <?php echo $nb_vehicules; ?> véhicule<?php echo $nb_vehicules > 1 ? 's' : ''; ?>
                                     </span>
+                                    <?php if ($client['type_client_id'] == 2): ?>
+                                    <span class="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 ml-2">
+                                        Société
+                                    </span>
+                                    <?php else: ?>
+                                    <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 ml-2">
+                                        Particulier
+                                    </span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -216,6 +252,28 @@ include $root_path . '/includes/header.php';
                             <h3 class="text-lg font-semibold text-gray-800 mb-4">Informations de contact</h3>
                             
                             <div class="space-y-4">
+                                <?php if ($client['type_client_id'] == 2): ?>
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-gray-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Raison sociale</p>
+                                        <p class="text-gray-800"><?php echo htmlspecialchars($client['raison_sociale']); ?></p>
+                                    </div>
+                                </div>
+                                <?php else: ?>
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-gray-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Nom complet</p>
+                                        <p class="text-gray-800"><?php echo htmlspecialchars($client['prenom'] . ' ' . $client['nom']); ?></p>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+                                
                                 <div class="flex items-start">
                                     <svg class="w-5 h-5 text-gray-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -264,46 +322,12 @@ include $root_path . '/includes/header.php';
                                 </svg>
 
                                     <div>
-                                        <p class="text-sm text-gray-500">Délai de paiment</p>
-                                        <p class="text-gray-800"><?php echo htmlspecialchars(isset($client['delai_paiement']) && $client['delai_paiement'] !== '' ? $client['delai_paiement'] : '0'); ?></p>
+                                        <p class="text-sm text-gray-500">Délai de paiement</p>
+                                        <p class="text-gray-800"><?php echo htmlspecialchars(isset($client['delai_paiement']) && $client['delai_paiement'] !== '' ? $client['delai_paiement'] . ' jours' : 'Paiement immédiat'); ?></p>
                                     </div>
                                 </div>
                                 <?php endif; ?>
                             </div>
-                            
-                            <!-- <div class="mt-6 pt-6 border-t border-gray-200">
-                                <h3 class="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h3>
-                                
-                                <div class="space-y-2">
-                                    <a href="<?php echo $root_path; ?>/vehicles/create.php?client_id=<?php echo $client['id']; ?>" class="flex items-center text-indigo-600 hover:text-indigo-800 transition">
-                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                        </svg>
-                                        Ajouter un véhicule
-                                    </a>
-                                    
-                                    <a href="<?php echo $root_path; ?>/interventions/create.php?client_id=<?php echo $client['id']; ?>" class="flex items-center text-indigo-600 hover:text-indigo-800 transition">
-                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                        </svg>
-                                        Créer une intervention
-                                    </a>
-                                    
-                                    <a href="<?php echo $root_path; ?>/invoices/create.php?client_id=<?php echo $client['id']; ?>" class="flex items-center text-indigo-600 hover:text-indigo-800 transition">
-                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                        </svg>
-                                        Créer une facture
-                                    </a>
-                                    
-                                    <a href="#" onclick="sendEmail()" class="flex items-center text-indigo-600 hover:text-indigo-800 transition">
-                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                        </svg>
-                                        Envoyer un email
-                                    </a>
-                                </div>
-                            </div> -->
                             
                             <div class="mt-6 pt-6 border-t border-gray-200">
                                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Statistiques</h3>
@@ -353,16 +377,6 @@ include $root_path . '/includes/header.php';
                         <div class="p-6">
                             <!-- Vehicles Tab -->
                             <div id="content-vehicles" class="tab-content block">
-                                <!-- <div class="flex justify-between items-center mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-800">Liste des véhicules</h3>
-                                    <a href="<?php echo $root_path; ?>/vehicles/create.php?client_id=<?php echo $client['id']; ?>" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                        </svg>
-                                        Ajouter
-                                    </a>
-                                </div> -->
-                                
                                 <?php if (empty($vehicules)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                                         <p class="text-gray-600">Aucun véhicule enregistré pour ce client.</p>
@@ -443,16 +457,6 @@ include $root_path . '/includes/header.php';
                             
                             <!-- Interventions Tab -->
                             <div id="content-interventions" class="tab-content hidden">
-                                <!-- <div class="flex justify-between items-center mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-800">Interventions</h3>
-                                    <a href="<?php echo $root_path; ?>/interventions/create.php?client_id=<?php echo $client['id']; ?>" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                        </svg>
-                                        Ajouter
-                                    </a>
-                                </div> -->
-                                
                                 <?php if (empty($interventions)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                                         <p class="text-gray-600">Aucune intervention enregistrée pour ce client.</p>
@@ -548,16 +552,6 @@ include $root_path . '/includes/header.php';
                             
                             <!-- Invoices Tab -->
                             <div id="content-invoices" class="tab-content hidden">
-                                <!-- <div class="flex justify-between items-center mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-800">Factures</h3>
-                                    <a href="<?php echo $root_path; ?>/invoices/create.php?client_id=<?php echo $client['id']; ?>" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm flex items-center">
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                        </svg>
-                                        Ajouter
-                                    </a>
-                                </div> -->
-                                
                                 <?php if (empty($factures)): ?>
                                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                                         <p class="text-gray-600">Aucune facture enregistrée pour ce client.</p>
@@ -688,4 +682,3 @@ include $root_path . '/includes/header.php';
 </script>
 
 <?php include $root_path . '/includes/footer.php'; ?>
-

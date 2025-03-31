@@ -131,18 +131,20 @@ try {
     // Requête paginée avec filtres
     $query = "SELECT i.id, i.date_creation, i.date_prevue, DATE(i.date_debut) AS date_debut,
                  DATE(i.date_fin) AS date_fin, 
-                    i.description, i.diagnostique, i.kilometrage, i.statut, i.commentaire, i.commande_id,
-                    v.immatriculation, CONCAT(v.marque, ' ', v.modele) AS vehicule_info,
-                    CONCAT(c.nom, ' ', c.prenom) AS client, c.id AS client_id,
-                    CONCAT(t.prenom, ' ', t.nom) AS technicien,
-                    t.specialite AS technicien_specialite
-              FROM interventions i
-              INNER JOIN vehicules v ON i.vehicule_id = v.id
-              INNER JOIN clients c ON v.client_id = c.id
-              LEFT JOIN technicien t ON i.technicien_id = t.id
-              $where_sql
-              ORDER BY i.date_creation DESC
-              LIMIT :debut, :interventionsParPage";
+                 i.description, i.diagnostique, i.kilometrage, i.statut, i.commentaire, i.commande_id,
+                 v.immatriculation, CONCAT(v.marque, ' ', v.modele) AS vehicule_info,
+                 i.date_prochain_ct, -- Ajout du champ date_prochain_ct
+                 CONCAT(c.nom, ' ', c.prenom) AS client, c.id AS client_id,
+                 CONCAT(t.prenom, ' ', t.nom) AS technicien,
+                 t.specialite AS technicien_specialite
+          FROM interventions i
+          INNER JOIN vehicules v ON i.vehicule_id = v.id
+          INNER JOIN clients c ON v.client_id = c.id
+          LEFT JOIN technicien t ON i.technicien_id = t.id
+          $where_sql
+          ORDER BY i.date_creation DESC
+          LIMIT :debut, :interventionsParPage";
+
 
     $stmt = $db->prepare($query);
     foreach ($params as $key => $value) {
@@ -405,10 +407,11 @@ try {
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <tr><!-- 
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th> -->
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date création</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date prévue</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prochain CT</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client/Véhicule</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technicien</th>
@@ -425,12 +428,15 @@ try {
                             <?php else: ?>
                                 <?php foreach ($interventions as $intervention): ?>
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo $intervention['id']; ?></td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <!-- <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo $intervention['id']; ?></td>
+                                        --> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             <?php echo date('d/m/Y', strtotime($intervention['date_creation'])); ?>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             <?php echo $intervention['date_prevue'] ? date('d/m/Y', strtotime($intervention['date_prevue'])) : '-'; ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?php echo $intervention['date_prochain_ct'] ? date('d/m/Y', strtotime($intervention['date_prochain_ct'])) : '-'; ?>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                                             <?php echo htmlspecialchars(substr($intervention['description'], 0, 50)) . (strlen($intervention['description']) > 50 ? '...' : ''); ?>
@@ -610,6 +616,10 @@ try {
                     <input type="date" id="date_fin" name="date_fin" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
                 </div>
                 <div>
+                    <label for="date_prochain_ct" class="block text-sm font-medium text-gray-700 mb-1">Date prochain contrôle technique</label>
+                    <input type="date" id="date_prochain_ct" name="date_prochain_ct" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
                     <label for="kilometrage" class="block text-sm font-medium text-gray-700 mb-1">Kilométrage</label>
                     <input type="number" id="kilometrage" name="kilometrage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Kilométrage actuel">
                 </div>
@@ -774,7 +784,7 @@ try {
                 </svg>
             </button>
         </div>
-        <form id="editInterventionForm" action="update.php" method="POST" class="p-6">
+        <form id="editInterventionForm" action="edit.php" method="POST" class="p-6">
             <input type="hidden" id="edit_id" name="id" value="">
             <input type="hidden" id="edit_client_id" name="client_id" value="">
             <input type="hidden" id="edit_commande_id" name="commande_id" value="">
@@ -821,6 +831,10 @@ try {
                 <div>
                     <label for="edit_date_fin" class="block text-sm font-medium text-gray-700 mb-1">Date de fin</label>
                     <input type="date" id="edit_date_fin" name="date_fin" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="edit_date_prochain_ct" class="block text-sm font-medium text-gray-700 mb-1">Date prochain contrôle technique</label>
+                    <input type="date" id="edit_date_prochain_ct" name="date_prochain_ct" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
                     <label for="edit_kilometrage" class="block text-sm font-medium text-gray-700 mb-1">Kilométrage</label>
@@ -989,19 +1003,23 @@ try {
                     <div class="bg-gray-50 p-4 rounded-md">
                         <div class="mb-2">
                             <p class="text-sm text-gray-500">Date de création</p>
-                            <p id="view_date_creation" class="font-medium"></p>
+                            <p id="view_date_creation" class="font-medium">Aucun</p>
                         </div>
                         <div class="mb-2">
                             <p class="text-sm text-gray-500">Date prévue</p>
-                            <p id="view_date_prevue" class="font-medium"></p>
+                            <p id="view_date_prevue" class="font-medium">Aucun</p>
                         </div>
                         <div class="mb-2">
                             <p class="text-sm text-gray-500">Date de début</p>
-                            <p id="view_date_debut" class="font-medium"></p>
+                            <p id="view_date_debut" class="font-medium">Aucun</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Date de fin</p>
-                            <p id="view_date_fin" class="font-medium"></p>
+                            <p id="view_date_fin" class="font-medium">Aucun</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Date prochain CT</p>
+                            <p id="view_date_prochain_ct" class="font-medium">Aucun</p>
                         </div>
                     </div>
                 </div>
@@ -1433,6 +1451,7 @@ document.head.insertAdjacentHTML('beforeend', `
 function loadCategoryData(categorieId, mode = 'add') {
     const prefix = mode === 'add' ? '' : 'edit_';
     const withArticle = document.getElementById(`${prefix}categorie_filter`).options[document.getElementById(`${prefix}categorie_filter`).selectedIndex].getAttribute('data-with-article');
+console.log("categorieId : ",categorieId);
 
     if (withArticle === '1') {
         document.getElementById(`${prefix}tab-articles`).click(); // Activer l'onglet Articles

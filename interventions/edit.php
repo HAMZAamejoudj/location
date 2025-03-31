@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $date_prevue = isset($_POST['date_prevue']) && !empty($_POST['date_prevue']) ? $_POST['date_prevue'] : null;
     $date_debut = isset($_POST['date_debut']) && !empty($_POST['date_debut']) ? $_POST['date_debut'] : null;
     $date_fin = isset($_POST['date_fin']) && !empty($_POST['date_fin']) ? $_POST['date_fin'] : null;
+    $date_prochain_ct = isset($_POST['date_prochain_ct']) && !empty($_POST['date_prochain_ct']) ? $_POST['date_prochain_ct'] : null;
     $kilometrage = isset($_POST['kilometrage']) && !empty($_POST['kilometrage']) ? intval($_POST['kilometrage']) : null;
     $description = isset($_POST['description']) ? trim($_POST['description']) : '';
     $diagnostique = isset($_POST['diagnostique']) ? trim($_POST['diagnostique']) : '';
@@ -79,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       date_prevue = :date_prevue, 
                       date_debut = :date_debut, 
                       date_fin = :date_fin, 
+                      date_prochain_ct = :date_prochain_ct, 
                       kilometrage = :kilometrage, 
                       description = :description, 
                       diagnostique = :diagnostique, 
@@ -93,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bindParam(':date_prevue', $date_prevue);
             $stmt->bindParam(':date_debut', $date_debut);
             $stmt->bindParam(':date_fin', $date_fin);
+            $stmt->bindParam(':date_prochain_ct', $date_prochain_ct);
             $stmt->bindParam(':kilometrage', $kilometrage);
             $stmt->bindParam(':description', $description);
             $stmt->bindParam(':diagnostique', $diagnostique);

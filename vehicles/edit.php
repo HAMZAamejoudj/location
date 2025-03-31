@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $couleur = trim($_POST['couleur']);
     $carburant = trim($_POST['carburant']);
     $puissance = intval($_POST['puissance']);
-    $date_achat = date('Y-m-d', strtotime($_POST['date_achat']));
+    $date_mise_circulation = date('Y-m-d', strtotime($_POST['date_mise_circulation']));
     $date_derniere_revision = date('Y-m-d', strtotime($_POST['date_derniere_revision']));
     $date_prochain_ct = date('Y-m-d', strtotime($_POST['date_prochain_ct']));
     $statut = trim($_POST['statut']);
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $query = "UPDATE vehicules SET immatriculation = :immatriculation, client_id = :client_id, marque = :marque, 
                       modele = :modele, annee = :annee, kilometrage = :kilometrage, couleur = :couleur, carburant = :carburant, 
-                      puissance = :puissance, date_achat = :date_achat, date_derniere_revision = :date_derniere_revision, 
+                      puissance = :puissance, date_mise_circulation = :date_mise_circulation, date_derniere_revision = :date_derniere_revision, 
                       date_prochain_ct = :date_prochain_ct, statut = :statut, notes = :notes WHERE id = :id";
             
             $stmt = $db->prepare($query);
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bindParam(':couleur', $couleur);
             $stmt->bindParam(':carburant', $carburant);
             $stmt->bindParam(':puissance', $puissance, PDO::PARAM_INT);
-            $stmt->bindParam(':date_achat', $date_achat);
+            $stmt->bindParam(':date_mise_circulation', $date_mise_circulation);
             $stmt->bindParam(':date_derniere_revision', $date_derniere_revision);
             $stmt->bindParam(':date_prochain_ct', $date_prochain_ct);
             $stmt->bindParam(':statut', $statut);
