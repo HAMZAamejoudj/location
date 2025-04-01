@@ -169,25 +169,33 @@ try {
         
         // Ajouter les articles à la commande
         if (!empty($articles)) {
-            $queryCommandeArticle = "INSERT INTO commande_articles (
-                                      commande_id, article_id, quantite, prix_unitaire, remise
-                                    ) VALUES (
-                                      :commande_id, :article_id, :quantite, :prix_unitaire, :remise
-                                    )";
-            
-            $stmtCommandeArticle = $db->prepare($queryCommandeArticle);
-            
-            foreach ($articles as $article) {
-                $stmtCommandeArticle->bindParam(':commande_id', $commande_id, PDO::PARAM_INT);
-                $stmtCommandeArticle->bindParam(':article_id', $article['id'], PDO::PARAM_INT);
-                $stmtCommandeArticle->bindParam(':quantite', $article['quantite'], PDO::PARAM_INT);
-                $stmtCommandeArticle->bindParam(':prix_unitaire', $article['prix_unitaire']);
-                $stmtCommandeArticle->bindParam(':remise', $article['remise']);
-                
-                $stmtCommandeArticle->execute();
-            }
+          $total = 0;
+            $queryCommandeArticle = "INSERT INTO commande_details (
+              ID_Commande, article_id, quantite, prix_unitaire, remise, montant_ht
+          ) VALUES (
+              :commande_id, :article_id, :quantite, :prix_unitaire, :remise, :montant_ht
+          )";
+          
+          $stmtCommandeArticle = $db->prepare($queryCommandeArticle);
+          
+          foreach ($articles as $article) {
+              $montant_ht = round($article['prix_unitaire'] * $article['quantite'] * (1 - $article['remise'] / 100), 2);
+              $stmtCommandeArticle->bindParam(':commande_id', $commande_id, PDO::PARAM_INT);
+              $stmtCommandeArticle->bindParam(':article_id', $article['id'], PDO::PARAM_INT);
+              $stmtCommandeArticle->bindParam(':quantite', $article['quantite'], PDO::PARAM_INT);
+              $stmtCommandeArticle->bindParam(':prix_unitaire', $article['prix_unitaire']);
+              $stmtCommandeArticle->bindParam(':remise', $article['remise']);
+              $stmtCommandeArticle->bindParam(':montant_ht', $montant_ht);
+              $stmtCommandeArticle->execute();
+              $total += $montant_ht;
+          } 
+          $query = "UPDATE commandes SET Montant_Total_HT = :Montant_Total_HT WHERE ID_Commande = :commande_id";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':commande_id', $commande_id);
+        $stmt->bindParam(':Montant_Total_HT', $total);
+        $stmt->execute();
         }
-        
+       
         // Ajouter les offres à la commande
         if (!empty($offres)) {
             $queryCommandeOffre = "INSERT INTO commande_offres (

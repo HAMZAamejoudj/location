@@ -218,7 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Mettre à jour la commande existante si demandé
                 else if ($commande_id && $update_commande) {
                     // Supprimer les articles et offres existants de la commande
-                    $query = "DELETE FROM commande_articles WHERE commande_id = :commande_id";
+                    $query = "DELETE FROM commande_details WHERE ID_Commande = :commande_id";
                     $stmt = $db->prepare($query);
                     $stmt->bindParam(':commande_id', $commande_id);
                     $stmt->execute();
@@ -230,17 +230,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Ajouter les nouveaux articles à la commande
                     if (!empty($selected_articles)) {
-                        $query = "INSERT INTO commande_articles (commande_id, article_id, quantite, prix_unitaire, remise) 
-                                  VALUES (:commande_id, :article_id, :quantite, :prix_unitaire, :remise)";
-                        $stmt = $db->prepare($query);
+                        $queryCommandeArticle = "INSERT INTO commande_details (
+                            ID_Commande, article_id, quantite, prix_unitaire, remise, montant_ht
+                        ) VALUES (
+                            :commande_id, :article_id, :quantite, :prix_unitaire, :remise, :montant_ht
+                        )";
                         
-                        foreach ($selected_articles as $article) {
-                            $stmt->bindParam(':commande_id', $commande_id);
-                            $stmt->bindParam(':article_id', $article['id']);
-                            $stmt->bindParam(':quantite', $article['quantite']);
-                            $stmt->bindParam(':prix_unitaire', $article['prix_unitaire']);
-                            $stmt->bindParam(':remise', $article['remise']);
-                            $stmt->execute();
+                        $stmtCommandeArticle = $db->prepare($queryCommandeArticle);
+                        
+                        foreach ($articles as $article) {
+                            $montant_ht = round($article['prix_unitaire'] * $article['quantite'] * (1 - $article['remise'] / 100), 2);
+                            $stmtCommandeArticle->bindParam(':commande_id', $commande_id, PDO::PARAM_INT);
+                            $stmtCommandeArticle->bindParam(':article_id', $article['id'], PDO::PARAM_INT);
+                            $stmtCommandeArticle->bindParam(':quantite', $article['quantite'], PDO::PARAM_INT);
+                            $stmtCommandeArticle->bindParam(':prix_unitaire', $article['prix_unitaire']);
+                            $stmtCommandeArticle->bindParam(':remise', $article['remise']);
+                            $stmtCommandeArticle->bindParam(':montant_ht', $montant_ht);
+                            $stmtCommandeArticle->execute();
                         }
                     }
                     

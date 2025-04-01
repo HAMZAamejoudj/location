@@ -131,7 +131,7 @@ function is_active($page, $dir = '') {
             </li>
             
             <!-- Deliveries -->
-            <li>
+          <!--   <li>
                 <a href="/sas-gestion-auto/deliveries/" class="flex items-center px-6 py-3 <?php echo is_active('', 'deliveries'); ?>">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -139,7 +139,7 @@ function is_active($page, $dir = '') {
                     </svg>
                     <span>Livraisons</span>
                 </a>
-            </li>
+            </li> -->
             
             <!-- Users -->
             <li>

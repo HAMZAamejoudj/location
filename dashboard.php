@@ -324,7 +324,7 @@ $monthly_revenue_data_json = json_encode($monthly_revenue_data);
                                                         Date: <?php echo date('d/m/Y', strtotime($alert['Date_Facture'])); ?>
                                                     </p>
                                                 </div>
-                                                <a href="invoices/view.php?id=<?php echo $alert['id']; ?>" class="text-xs text-blue-600 hover:text-blue-800">
+                                                <a href="invoices/view_facture.php?id=<?php echo $alert['id']; ?>" class="text-xs text-blue-600 hover:text-blue-800">
                                                     Voir
                                                 </a>
                                             </div>
@@ -406,7 +406,7 @@ $monthly_revenue_data_json = json_encode($monthly_revenue_data);
                                                         Montant: <?php echo number_format($alert['Montant_Total_HT'], 2, ',', ' '); ?> DH
                                                     </p>
                                                 </div>
-                                                <a href="invoices/view.php?id=<?php echo $alert['id']; ?>" class="text-xs text-blue-600 hover:text-blue-800">
+                                                <a href="invoices/view_facture.php?id=<?php echo $alert['id']; ?>" class="text-xs text-blue-600 hover:text-blue-800">
                                                     Voir
                                                 </a>
                                             </div>
@@ -658,15 +658,16 @@ $monthly_revenue_data_json = json_encode($monthly_revenue_data);
                 </a>
 
                 <!-- Deliveries Management -->
-                <a href="deliveries/" class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition duration-300 flex flex-col items-center justify-center text-center">
+                <a href="offres/" class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition duration-300 flex flex-col items-center justify-center text-center">
                     <div class="bg-pink-100 p-4 rounded-full mb-4">
-                        <svg class="w-8 h-8 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
-                        </svg>
+                    <svg class="w-8 h-8 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7a1 1 0 011-1h4.586a1 1 0 01.707.293l7.414 7.414a1 1 0 010 1.414l-4.586 4.586a1 1 0 01-1.414 0L4.293 9.707A1 1 0 014 9V8a1 1 0 011-1h2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01" />
+                        </svg>  
+                    
                     </div>
-                    <h3 class="text-lg font-medium text-gray-800">Livraisons</h3>
-                    <p class="text-sm text-gray-600 mt-2">Gérer les bons de livraison</p>
+                    <h3 class="text-lg font-medium text-gray-800">Offres</h3>
+                    <p class="text-sm text-gray-600 mt-2">Gérer les offres</p>
                 </a>
 
                 <!-- Users Management -->
