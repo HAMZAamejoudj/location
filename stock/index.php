@@ -507,9 +507,9 @@ include $root_path . '/includes/header.php';
                                     <div class="mb-4">
                                         <label for="type_mouvement" class="block text-sm font-medium text-gray-700 mb-1">Type de mouvement</label>
                                         <select id="type_mouvement" name="type_mouvement" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                            <option value="entree">Entrée de stock</option>
-                                            <option value="sortie">Sortie de stock</option>
-                                            <option value="ajustement">Ajustement d'inventaire</option>
+                                            <option value="entree">Réception</option>
+                                            <option value="sortie">Modification</option>
+                                            <option value="ajustement">Retour</option>
                                         </select>
                                     </div>
                                     <div class="mb-4">
@@ -519,13 +519,11 @@ include $root_path . '/includes/header.php';
                                     <div class="mb-4">
                                         <label for="motif" class="block text-sm font-medium text-gray-700 mb-1">Motif</label>
                                         <select id="motif" name="motif" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                            <option value="achat">Achat</option>
-                                            <option value="vente">Vente</option>
-                                            <option value="retour_client">Retour client</option>
-                                            <option value="retour_fournisseur">Retour fournisseur</option>
-                                            <option value="perte">Perte/Casse</option>
-                                            <option value="inventaire">Correction d'inventaire</option>
-                                            <option value="autre">Autre</option>
+                                            <option value="achat">Réception</option>
+                                            <option value="vente">Modification</option>
+                                            <option value="retour_client">Retour</option>
+                                            <option value="retour_fournisseur">Autre</option>
+                                          
                                         </select>
                                     </div>
                                     <div class="mb-4">

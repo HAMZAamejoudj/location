@@ -243,11 +243,12 @@ include $root_path . '/includes/header.php';
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Sélectionner une catégorie</option>
                                 <?php foreach ($categories as $categorie): ?>
-                                    <?php $selected = ($article['categorie'] == $categorie['id']) ? 'selected' : ''; ?>
-                                    <option value="<?php echo $categorie['id']; ?>" <?php echo $selected; ?>>
-                                        <?php echo htmlspecialchars($categorie['nom']); ?>
-                                    </option>
-                                <?php endforeach; ?>
+    <?php $selected = ($article['categorie_id'] == $categorie['id']) ? 'selected' : ''; ?>
+    <option value="<?php echo $categorie['id']; ?>" <?php echo $selected; ?>>
+        <?php echo htmlspecialchars($categorie['nom']); ?>
+    </option>
+<?php endforeach; ?>
+
                             </select>
                             <?php if (isset($errors['categorie'])): ?>
                                 <div class="text-red-500 text-xs mt-1"><?php echo $errors['categorie']; ?></div>
@@ -260,8 +261,8 @@ include $root_path . '/includes/header.php';
                                 <option value="">Sélectionner un emplacement</option>
                                 <?php
                                 $emplacements = [
-                                    'Rayon A', 'Rayon B', 'Rayon C', 'Rayon D', 
-                                    'Stock arrière', 'Vitrine', 'Réserve étage', 'Entrepôt externe'
+                                  'Casa Roche noir', 'Casa Aeroport', 'Rabat', 'Marrakech', 
+                                    'Marrakech Aeroport'
                                 ];
                                 foreach ($emplacements as $emp) {
                                     $selected = ($article['emplacement'] === $emp) ? 'selected' : '';
