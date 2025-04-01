@@ -1,0 +1,14 @@
+[2025-04-01 01:24:42] [INFO] Fichier chargé: Configuration de la base de données
+[2025-04-01 01:24:42] [INFO] Fichier chargé: Fonctions utilitaires
+[2025-04-01 01:24:42] [INFO] Fichier chargé: PHPMailer Exception
+[2025-04-01 01:24:42] [INFO] Fichier chargé: PHPMailer Core
+[2025-04-01 01:24:42] [INFO] Fichier chargé: PHPMailer SMTP
+[2025-04-01 01:24:42] [INFO] Traitement du formulaire d'ajout d'utilisateur
+[2025-04-01 01:24:42] [INFO] Données reçues: Username=MisterA, Nom=Bellahcen, Prénom=Ayoub, Email=ayoubbellahcen10@gmail.com, Role=admin
+[2025-04-01 01:24:42] [INFO] Connexion à la base de données établie
+[2025-04-01 01:24:42] [INFO] Mot de passe généré pour MisterA
+[2025-04-01 01:24:42] [INFO] Utilisateur inséré avec ID: 4
+[2025-04-01 01:24:42] [INFO] Configuration SMTP terminée
+[2025-04-01 01:24:42] [INFO] Destinataires configurés: ayoubbellahcen10@gmail.com
+[2025-04-01 01:24:42] [INFO] Contenu de l'email préparé
+[2025-04-01 01:24:45] [INFO] Email envoyé avec succès à ayoubbellahcen10@gmail.com

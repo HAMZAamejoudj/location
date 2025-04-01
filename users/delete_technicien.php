@@ -3,22 +3,32 @@
 session_start();
 
 // Chemin racine de l'application
-$root_path = dirname(dirname(__DIR__));
+$root_path = dirname(__DIR__);
 
 // Inclure les fichiers de configuration et de fonctions
 if (file_exists($root_path . '/config/database.php')) {
     require_once $root_path . '/config/database.php';
 }
 
+if (file_exists($root_path . '/includes/functions.php')) {
+    require_once $root_path . '/includes/functions.php';
+}
+
+// Vérifier si l'utilisateur est connecté, sinon rediriger vers la page de connexion
+if (!isset($_SESSION['user_id'])) {
+    // Pour le développement, créer un utilisateur factice
+    $_SESSION['user_id'] = 1;
+}
+
 // Vérifier si le formulaire a été soumis
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Récupérer l'ID du technicien
+    // Récupérer l'ID du technicien à supprimer
     $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
     
     // Valider l'ID
     if ($id <= 0) {
         $_SESSION['error'] = "ID de technicien invalide";
-        header('Location: ../index.php');
+        header('Location: index.php');
         exit;
     }
     
@@ -28,21 +38,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db = $database->getConnection();
         
         // Vérifier si le technicien existe
-        $check_query = "SELECT id FROM technicien WHERE id = :id";
+        $check_query = "SELECT COUNT(*) FROM technicien WHERE id = :id";
         $check_stmt = $db->prepare($check_query);
-        $check_stmt->bindParam(':id', $id);
+        $check_stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $check_stmt->execute();
         
-        if ($check_stmt->rowCount() === 0) {
-            $_SESSION['error'] = "Le technicien n'existe pas";
-            header('Location: ../index.php');
+        if ($check_stmt->fetchColumn() == 0) {
+            $_SESSION['error'] = "Ce technicien n'existe pas";
+            header('Location: index.php');
             exit;
         }
         
         // Préparer la requête de suppression
         $query = "DELETE FROM technicien WHERE id = :id";
         $stmt = $db->prepare($query);
-        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         
         // Exécuter la requête
         if ($stmt->execute()) {
@@ -62,3 +72,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: index.php');
     exit;
 }
+?>

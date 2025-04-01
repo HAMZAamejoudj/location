@@ -20,11 +20,6 @@ if (!isset($_SESSION['user_id'])) {
     $_SESSION['user_id'] = 1;
 }
 
-// Utilisateur temporaire pour éviter l'erreur
-$currentUser = [
-    'name' => 'Utilisateur Test',
-    'role' => 'Administrateur'
-];
 // Vérifier si le formulaire a été soumis
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Récupérer les données du formulaire
@@ -33,6 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $prenom = isset($_POST['prenom']) ? trim($_POST['prenom']) : '';
     $date_naissance = isset($_POST['date_naissance']) ? trim($_POST['date_naissance']) : '';
     $specialite = isset($_POST['specialite']) ? trim($_POST['specialite']) : '';
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $user_name = isset($_POST['user_name']) ? trim($_POST['user_name']) : '';
     
     // Valider les données
     $errors = [];
@@ -58,6 +55,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($specialite)) {
         $errors[] = "La spécialité est requise";
     }
+
+    if (empty($email)) {
+        $errors[] = "L'email est requis";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "L'email n'est pas valide";
+    }
+
+    if (empty($user_name)) {
+        $errors[] = "Le nom d'utilisateur est requis";
+    }
     
     // Si pas d'erreurs, mettre à jour dans la base de données
     if (empty($errors)) {
@@ -66,19 +73,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $database = new Database();
             $db = $database->getConnection();
             
+            // Vérifier si l'email existe déjà pour un autre technicien
+            $check_query = "SELECT COUNT(*) FROM technicien WHERE email = :email AND id != :id";
+            $check_stmt = $db->prepare($check_query);
+            $check_stmt->bindParam(':email', $email);
+            $check_stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $check_stmt->execute();
+            
+            if ($check_stmt->fetchColumn() > 0) {
+                $_SESSION['error'] = "Cet email est déjà utilisé par un autre technicien";
+                header('Location: index.php');
+                exit;
+            }
+            
+            // Vérifier si le nom d'utilisateur existe déjà pour un autre technicien
+            $check_query = "SELECT COUNT(*) FROM technicien WHERE user_name = :user_name AND id != :id";
+            $check_stmt = $db->prepare($check_query);
+            $check_stmt->bindParam(':user_name', $user_name);
+            $check_stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $check_stmt->execute();
+            
+            if ($check_stmt->fetchColumn() > 0) {
+                $_SESSION['error'] = "Ce nom d'utilisateur est déjà utilisé";
+                header('Location: index.php');
+                exit;
+            }
+            
             // Préparer la requête
             $query = "UPDATE technicien 
-                      SET nom = :nom, prenom = :prenom, date_naissance = :date_naissance, specialite = :specialite 
+                      SET nom = :nom, prenom = :prenom, date_naissance = :date_naissance, 
+                          specialite = :specialite, email = :email, user_name = :user_name 
                       WHERE id = :id";
             
             $stmt = $db->prepare($query);
             
             // Lier les paramètres
-            $stmt->bindParam(':id', $id);
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->bindParam(':nom', $nom);
             $stmt->bindParam(':prenom', $prenom);
             $stmt->bindParam(':date_naissance', $date_naissance);
             $stmt->bindParam(':specialite', $specialite);
+            $stmt->bindParam(':email', $email);
+            $stmt->bindParam(':user_name', $user_name);
             
             // Exécuter la requête
             if ($stmt->execute()) {
@@ -101,4 +137,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Location: index.php');
     exit;
 }
-
+?>

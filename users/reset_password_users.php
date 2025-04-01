@@ -15,7 +15,7 @@ $root_path = dirname(__DIR__);
 
 // Journalisation
 function logMessage($message, $type = 'INFO') {
-    $log_file = dirname(__DIR__) . '/logs/technicien_' . date('Y-m-d') . '.log';
+    $log_file = dirname(__DIR__) . '/logs/password_reset_' . date('Y-m-d') . '.log';
     $log_dir = dirname($log_file);
     
     // Créer le répertoire de logs s'il n'existe pas
@@ -31,12 +31,18 @@ function logMessage($message, $type = 'INFO') {
     );
 }
 
-// Fonction pour générer un mot de passe aléatoire
-function generateRandomPassword($length = 10) {
+/**
+ * Génère un mot de passe aléatoire plus sécurisé
+ * 
+ * @param int $length Longueur du mot de passe
+ * @return string Mot de passe généré
+ */
+function generateRandomPassword($length = 12) {
     $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+';
     $password = '';
     $max = strlen($chars) - 1;
     
+    // Utiliser random_int pour une meilleure sécurité que rand()
     for ($i = 0; $i < $length; $i++) {
         $password .= $chars[random_int(0, $max)];
     }
@@ -61,7 +67,7 @@ foreach ($requiredFiles as $file => $description) {
     } else {
         logMessage("Fichier manquant: $description ($filePath)", 'ERROR');
         $_SESSION['error'] = "Configuration système incomplète. Veuillez contacter l'administrateur.";
-        header('Location: index.php');
+        header('Location: index.php?type=admin');
         exit;
     }
 }
@@ -71,68 +77,28 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
-// Vérifier si l'utilisateur est connecté
-if (!isset($_SESSION['user_id'])) {
-    logMessage("Tentative d'accès non autorisé - utilisateur non connecté", 'SECURITY');
-    // Pour le développement, créer un utilisateur factice
-    $_SESSION['user_id'] = 1;
-    logMessage("Utilisateur factice créé pour le développement", 'DEV');
+// Vérifier si l'utilisateur est connecté et a les droits d'administrateur
+/* if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    logMessage("Tentative d'accès non autorisé à la réinitialisation de mot de passe", 'SECURITY');
+    $_SESSION['error'] = "Vous n'avez pas les droits nécessaires pour effectuer cette action.";
+    header('Location: index.php?type=admin');
+    exit;
 }
-
-// Vérifier si le formulaire a été soumis
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    logMessage("Traitement du formulaire d'ajout de technicien");
+ */
+// Traiter la demande de réinitialisation de mot de passe
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
+    logMessage("Traitement de la demande de réinitialisation de mot de passe");
     
-    // Récupérer et nettoyer les données du formulaire (méthode compatible PHP 8+)
-    $nom = isset($_POST['nom']) ? htmlspecialchars(trim($_POST['nom'])) : '';
-    $prenom = isset($_POST['prenom']) ? htmlspecialchars(trim($_POST['prenom'])) : '';
-    $date_naissance = isset($_POST['date_naissance']) ? trim($_POST['date_naissance']) : '';
-    $specialite = isset($_POST['specialite']) ? htmlspecialchars(trim($_POST['specialite'])) : '';
-    $email = isset($_POST['email']) ? trim(filter_var($_POST['email'], FILTER_SANITIZE_EMAIL)) : '';
-    $user_name = isset($_POST['user_name']) ? htmlspecialchars(trim($_POST['user_name'])) : '';
+    // Récupérer et valider l'ID de l'utilisateur
+    $id = filter_var($_POST['id'], FILTER_VALIDATE_INT);
     
-    logMessage("Données reçues: Nom=$nom, Prénom=$prenom, Email=$email, Username=$user_name");
-    
-    // Valider les données
-    $errors = [];
-    
-    if (empty($nom)) {
-        $errors[] = "Le nom est requis";
-    }
-    
-    if (empty($prenom)) {
-        $errors[] = "Le prénom est requis";
-    }
-    
-    if (empty($date_naissance)) {
-        $errors[] = "La date de naissance est requise";
-    } elseif (strtotime($date_naissance) > time()) {
-        $errors[] = "La date de naissance ne peut pas être dans le futur";
-    }
-    
-    if (empty($specialite)) {
-        $errors[] = "La spécialité est requise";
-    }
-
-    if (empty($email)) {
-        $errors[] = "L'email est requis";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "L'email n'est pas valide";
-        logMessage("Email invalide: $email", 'WARNING');
-    }
-
-    if (empty($user_name)) {
-        $errors[] = "Le nom d'utilisateur est requis";
-    }
-    
-    if (!empty($errors)) {
-        logMessage("Validation échouée: " . implode(", ", $errors), 'ERROR');
-        $_SESSION['error'] = implode("<br>", $errors);
-        header('Location: index.php');
+    if (!$id) {
+        logMessage("ID utilisateur invalide: " . $_POST['id'], 'ERROR');
+        $_SESSION['error'] = "ID utilisateur invalide.";
+        header('Location: index.php?type=admin');
         exit;
     }
     
-    // Si pas d'erreurs, insérer dans la base de données
     try {
         // Connexion à la base de données
         $database = new Database();
@@ -144,91 +110,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         logMessage("Connexion à la base de données établie");
         
-        // Vérifier si l'email existe déjà
-        $check_query = "SELECT COUNT(*) FROM technicien WHERE email = :email";
+        // Vérifier si l'utilisateur existe
+        $check_query = "SELECT id, email, nom, prenom, username FROM users WHERE id = :id LIMIT 1";
         $check_stmt = $db->prepare($check_query);
         
         if (!$check_stmt) {
-            throw new Exception("Erreur de préparation de la requête SQL (vérification email).");
+            throw new Exception("Erreur de préparation de la requête SQL.");
         }
         
-        $check_stmt->bindParam(':email', $email);
+        $check_stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $success = $check_stmt->execute();
         
         if (!$success) {
             $errorInfo = $check_stmt->errorInfo();
-            throw new Exception("Erreur d'exécution SQL (vérification email): " . $errorInfo[2]);
+            throw new Exception("Erreur d'exécution SQL: " . $errorInfo[2]);
         }
         
-        if ($check_stmt->fetchColumn() > 0) {
-            logMessage("Email déjà utilisé: $email", 'WARNING');
-            $_SESSION['error'] = "Cet email est déjà utilisé par un autre technicien";
-            header('Location: index.php');
+        if ($check_stmt->rowCount() === 0) {
+            logMessage("Utilisateur ID: $id introuvable", 'ERROR');
+            $_SESSION['error'] = "L'utilisateur n'existe pas.";
+            header('Location: index.php?type=admin');
             exit;
         }
         
-        // Vérifier si le nom d'utilisateur existe déjà
-        $check_query = "SELECT COUNT(*) FROM technicien WHERE user_name = :user_name";
-        $check_stmt = $db->prepare($check_query);
+        $user = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        logMessage("Informations de l'utilisateur récupérées: " . $user['prenom'] . " " . $user['nom']);
         
-        if (!$check_stmt) {
-            throw new Exception("Erreur de préparation de la requête SQL (vérification nom d'utilisateur).");
+        // Vérifier si l'email est valide
+        if (empty($user['email']) || !filter_var($user['email'], FILTER_VALIDATE_EMAIL)) {
+            logMessage("Email invalide pour l'utilisateur ID: $id - " . $user['email'], 'WARNING');
         }
         
-        $check_stmt->bindParam(':user_name', $user_name);
-        $success = $check_stmt->execute();
-        
-        if (!$success) {
-            $errorInfo = $check_stmt->errorInfo();
-            throw new Exception("Erreur d'exécution SQL (vérification nom d'utilisateur): " . $errorInfo[2]);
-        }
-        
-        if ($check_stmt->fetchColumn() > 0) {
-            logMessage("Nom d'utilisateur déjà utilisé: $user_name", 'WARNING');
-            $_SESSION['error'] = "Ce nom d'utilisateur est déjà utilisé";
-            header('Location: index.php');
-            exit;
-        }
-        
-        // Générer un mot de passe aléatoire
-        $password = generateRandomPassword();
-        logMessage("Mot de passe généré pour $user_name");
+        // Générer un nouveau mot de passe aléatoire
+        $new_password = generateRandomPassword();
+        logMessage("Nouveau mot de passe généré pour " . $user['username']);
         
         // Hasher le mot de passe
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
         
-        // Préparer la requête d'insertion
-        $query = "INSERT INTO technicien (nom, prenom, date_naissance, specialite, email, user_name, password) 
-                  VALUES (:nom, :prenom, :date_naissance, :specialite, :email, :user_name, :password)";
-        
+        // Mettre à jour le mot de passe
+        $query = "UPDATE users SET password = :password WHERE id = :id";
         $stmt = $db->prepare($query);
         
         if (!$stmt) {
-            throw new Exception("Erreur de préparation de la requête SQL d'insertion.");
+            throw new Exception("Erreur de préparation de la requête SQL de mise à jour.");
         }
         
-        // Lier les paramètres
-        $stmt->bindParam(':nom', $nom);
-        $stmt->bindParam(':prenom', $prenom);
-        $stmt->bindParam(':date_naissance', $date_naissance);
-        $stmt->bindParam(':specialite', $specialite);
-        $stmt->bindParam(':email', $email);
-        $stmt->bindParam(':user_name', $user_name);
         $stmt->bindParam(':password', $hashed_password);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $update_success = $stmt->execute();
         
-        // Exécuter la requête
-        $success = $stmt->execute();
-        
-        if (!$success) {
+        if (!$update_success) {
             $errorInfo = $stmt->errorInfo();
-            throw new Exception("Erreur d'exécution SQL (insertion): " . $errorInfo[2]);
+            throw new Exception("Erreur d'exécution SQL (mise à jour): " . $errorInfo[2]);
         }
         
-        // Récupérer l'ID du technicien inséré
-        $technicien_id = $db->lastInsertId();
-        logMessage("Technicien inséré avec ID: $technicien_id");
+        logMessage("Mot de passe mis à jour dans la base de données");
+        $_SESSION['success'] = "Le mot de passe a été réinitialisé avec succès.";
         
-        // Envoyer un email au technicien avec ses identifiants
+        // Envoyer un email avec le nouveau mot de passe
         $mail = new PHPMailer(true);
         
         try {
@@ -256,24 +196,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Destinataires
             $mail->setFrom('ayoubbellahcen6@gmail.com', 'SAS Réparation Auto');
-            $mail->addAddress($email, $prenom . ' ' . $nom);
+            $mail->addAddress($user['email'], $user['prenom'] . ' ' . $user['nom']);
             $mail->addReplyTo('ayoubbellahcen6@gmail.com', 'Service Client');
             
             // Ajouter un BCC pour garder une copie
             $mail->addBCC('ayoubbellahcen6@gmail.com', 'Archives Comptes');
             
-            logMessage("Destinataires configurés: $email");
+            logMessage("Destinataires configurés: " . $user['email']);
             
             // Contenu
             $mail->isHTML(true);
-            $mail->Subject = 'Vos identifiants de connexion - SAS Réparation Auto';
+            $mail->Subject = 'Réinitialisation de votre mot de passe - SAS Réparation Auto';
             
             // Préparer les données pour le template d'email
             $emailData = [
-                'prenom' => htmlspecialchars($prenom),
-                'nom' => htmlspecialchars($nom),
-                'username' => htmlspecialchars($user_name),
-                'password' => htmlspecialchars($password),
+                'prenom' => htmlspecialchars($user['prenom']),
+                'nom' => htmlspecialchars($user['nom']),
+                'username' => htmlspecialchars($user['username']),
+                'password' => htmlspecialchars($new_password),
                 'annee' => date('Y')
             ];
             
@@ -287,25 +227,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Envoyer l'email
             $mail->send();
-            logMessage("Email envoyé avec succès à $email");
-            
-            $_SESSION['success'] = "Le technicien a été ajouté avec succès et ses identifiants ont été envoyés par email";
+            logMessage("Email de réinitialisation envoyé avec succès à " . $user['email']);
         } catch (Exception $e) {
             logMessage("Échec de l'envoi de l'email: " . $e->getMessage(), 'ERROR');
-            $_SESSION['success'] = "Le technicien a été ajouté avec succès mais l'envoi de l'email a échoué";
+            $_SESSION['success'] .= " Mais l'envoi de l'email a échoué.";
+            // Pour le développement, afficher le mot de passe dans la session
+            $_SESSION['success'] .= " Nouveau mot de passe (à envoyer manuellement) : " . $new_password;
         }
+        
+    } catch (PDOException $e) {
+        logMessage("Erreur PDO: " . $e->getMessage(), 'ERROR');
+        $_SESSION['error'] = "Erreur de base de données: " . $e->getMessage();
     } catch (Exception $e) {
         logMessage("Erreur: " . $e->getMessage(), 'ERROR');
         $_SESSION['error'] = "Une erreur est survenue: " . $e->getMessage();
     }
     
-    // Rediriger vers la page des techniciens
-    header('Location: index.php');
+    // Rediriger vers la page d'administration
+    header('Location: index.php?type=admin');
     exit;
 } else {
-    // Si la méthode n'est pas POST, rediriger vers la page des techniciens
     logMessage("Tentative d'accès direct au script sans soumission de formulaire", 'WARNING');
-    header('Location: index.php');
+    $_SESSION['error'] = "Requête invalide.";
+    header('Location: index.php?type=admin');
     exit;
 }
 
@@ -331,6 +275,7 @@ function getEmailTemplate($data) {
             .button { display: inline-block; background-color: #4a86e8; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold; }
             .button:hover { background-color: #3b78e7; }
             .highlight { color: #4a86e8; font-weight: bold; }
+            .warning { color: #e74c3c; font-weight: bold; }
             @media only screen and (max-width: 600px) {
                 .container { width: 100%; }
                 .content { padding: 10px; }
@@ -341,19 +286,21 @@ function getEmailTemplate($data) {
     <body>
         <div class="container">
             <div class="header">
-                <h2>Bienvenue chez SAS Réparation Auto</h2>
+                <h2>Réinitialisation de votre mot de passe</h2>
             </div>
             <div class="content">
                 <p>Bonjour ' . $data['prenom'] . ' ' . $data['nom'] . ',</p>
-                <p>Votre compte a été créé avec succès. Voici vos identifiants de connexion :</p>
+                <p>Votre mot de passe a été réinitialisé. Voici vos nouveaux identifiants de connexion :</p>
                 
                 <div class="info-box">
                     <p><strong>Nom d\'utilisateur:</strong> <span class="highlight">' . $data['username'] . '</span></p>
-                    <p><strong>Mot de passe:</strong> <span class="highlight">' . $data['password'] . '</span></p>
+                    <p><strong>Nouveau mot de passe:</strong> <span class="highlight">' . $data['password'] . '</span></p>
                 </div>
                 
-                <p>Nous vous recommandons de changer votre mot de passe lors de votre première connexion.</p>
+                <p>Nous vous recommandons de changer votre mot de passe dès votre prochaine connexion.</p>
                 <p>Pour vous connecter, veuillez visiter notre site web et utiliser les identifiants ci-dessus.</p>
+                
+                <p class="warning">Si vous n\'avez pas demandé cette réinitialisation, veuillez contacter immédiatement l\'administrateur.</p>
                 
                 <p style="text-align: center; margin: 25px 0;">
                     <a href="https://www.sasreparation.com/login" class="button">Se connecter</a>
@@ -378,13 +325,15 @@ function getEmailTemplate($data) {
 function getPlainTextEmail($data) {
     return 'Bonjour ' . $data['prenom'] . ' ' . $data['nom'] . ',
 
-Votre compte a été créé avec succès. Voici vos identifiants de connexion :
+Votre mot de passe a été réinitialisé. Voici vos nouveaux identifiants de connexion :
 
 Nom d\'utilisateur: ' . $data['username'] . '
-Mot de passe: ' . $data['password'] . '
+Nouveau mot de passe: ' . $data['password'] . '
 
-Nous vous recommandons de changer votre mot de passe lors de votre première connexion.
+Nous vous recommandons de changer votre mot de passe dès votre prochaine connexion.
 Pour vous connecter, veuillez visiter notre site web et utiliser les identifiants ci-dessus.
+
+ATTENTION: Si vous n\'avez pas demandé cette réinitialisation, veuillez contacter immédiatement l\'administrateur.
 
 Cordialement,
 L\'équipe de SAS Réparation Auto

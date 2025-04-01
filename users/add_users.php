@@ -1,8 +1,9 @@
 <?php
-// Démarrer la session si elle n'est pas déjà démarrée
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Démarrer la session
+session_start();
+
+// Chemin racine de l'application
+$root_path = dirname(__DIR__);
 
 // Activer l'affichage des erreurs pour le développement uniquement
 // À commenter en production
@@ -10,12 +11,9 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Chemin racine de l'application
-$root_path = dirname(__DIR__);
-
-// Journalisation
+// Fonction de journalisation
 function logMessage($message, $type = 'INFO') {
-    $log_file = dirname(__DIR__) . '/logs/technicien_' . date('Y-m-d') . '.log';
+    $log_file = dirname(__DIR__) . '/logs/admin_' . date('Y-m-d') . '.log';
     $log_dir = dirname($log_file);
     
     // Créer le répertoire de logs s'il n'existe pas
@@ -61,7 +59,7 @@ foreach ($requiredFiles as $file => $description) {
     } else {
         logMessage("Fichier manquant: $description ($filePath)", 'ERROR');
         $_SESSION['error'] = "Configuration système incomplète. Veuillez contacter l'administrateur.";
-        header('Location: index.php');
+        header('Location: index.php?type=admin');
         exit;
     }
 }
@@ -71,68 +69,65 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
-// Vérifier si l'utilisateur est connecté
-if (!isset($_SESSION['user_id'])) {
-    logMessage("Tentative d'accès non autorisé - utilisateur non connecté", 'SECURITY');
-    // Pour le développement, créer un utilisateur factice
-    $_SESSION['user_id'] = 1;
-    logMessage("Utilisateur factice créé pour le développement", 'DEV');
+// Vérifier si l'utilisateur est connecté et a les droits d'administrateur
+/* if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    logMessage("Tentative d'accès non autorisé - utilisateur sans droits admin", 'SECURITY');
+    $_SESSION['error'] = "Vous n'avez pas les droits nécessaires pour effectuer cette action.";
+    header('Location: index.php?type=admin');
+    exit;
 }
+ */
 
-// Vérifier si le formulaire a été soumis
+// Traiter le formulaire d'ajout d'utilisateur
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    logMessage("Traitement du formulaire d'ajout de technicien");
+    logMessage("Traitement du formulaire d'ajout d'utilisateur");
     
-    // Récupérer et nettoyer les données du formulaire (méthode compatible PHP 8+)
+    // Récupérer et valider les données du formulaire
+    $username = isset($_POST['username']) ? htmlspecialchars(trim($_POST['username'])) : '';
     $nom = isset($_POST['nom']) ? htmlspecialchars(trim($_POST['nom'])) : '';
     $prenom = isset($_POST['prenom']) ? htmlspecialchars(trim($_POST['prenom'])) : '';
-    $date_naissance = isset($_POST['date_naissance']) ? trim($_POST['date_naissance']) : '';
-    $specialite = isset($_POST['specialite']) ? htmlspecialchars(trim($_POST['specialite'])) : '';
     $email = isset($_POST['email']) ? trim(filter_var($_POST['email'], FILTER_SANITIZE_EMAIL)) : '';
-    $user_name = isset($_POST['user_name']) ? htmlspecialchars(trim($_POST['user_name'])) : '';
+    $role = isset($_POST['role']) ? htmlspecialchars(trim($_POST['role'])) : '';
     
-    logMessage("Données reçues: Nom=$nom, Prénom=$prenom, Email=$email, Username=$user_name");
+    logMessage("Données reçues: Username=$username, Nom=$nom, Prénom=$prenom, Email=$email, Role=$role");
     
-    // Valider les données
+    // Validation des données
     $errors = [];
     
+    if (empty($username)) {
+        $errors[] = "Le nom d'utilisateur est obligatoire.";
+    }
+    
     if (empty($nom)) {
-        $errors[] = "Le nom est requis";
+        $errors[] = "Le nom est obligatoire.";
     }
     
     if (empty($prenom)) {
-        $errors[] = "Le prénom est requis";
+        $errors[] = "Le prénom est obligatoire.";
     }
     
-    if (empty($date_naissance)) {
-        $errors[] = "La date de naissance est requise";
-    } elseif (strtotime($date_naissance) > time()) {
-        $errors[] = "La date de naissance ne peut pas être dans le futur";
-    }
-    
-    if (empty($specialite)) {
-        $errors[] = "La spécialité est requise";
-    }
-
     if (empty($email)) {
-        $errors[] = "L'email est requis";
+        $errors[] = "L'email est obligatoire.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "L'email n'est pas valide";
+        $errors[] = "L'email n'est pas valide.";
         logMessage("Email invalide: $email", 'WARNING');
     }
-
-    if (empty($user_name)) {
-        $errors[] = "Le nom d'utilisateur est requis";
+    
+    if (empty($role)) {
+        $errors[] = "Le rôle est obligatoire.";
+    } elseif (!in_array($role, ['admin', 'manager', 'technicien', 'comptable'])) {
+        $errors[] = "Le rôle sélectionné n'est pas valide.";
+        logMessage("Rôle invalide: $role", 'WARNING');
     }
     
     if (!empty($errors)) {
         logMessage("Validation échouée: " . implode(", ", $errors), 'ERROR');
         $_SESSION['error'] = implode("<br>", $errors);
-        header('Location: index.php');
+        header('Location: index.php?type=admin');
         exit;
     }
     
-    // Si pas d'erreurs, insérer dans la base de données
+    // Si aucune erreur, procéder à l'ajout
     try {
         // Connexion à la base de données
         $database = new Database();
@@ -144,62 +139,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         logMessage("Connexion à la base de données établie");
         
-        // Vérifier si l'email existe déjà
-        $check_query = "SELECT COUNT(*) FROM technicien WHERE email = :email";
+        // Vérifier si le nom d'utilisateur ou l'email existe déjà
+        $check_query = "SELECT COUNT(*) as count FROM users WHERE username = :username OR email = :email";
         $check_stmt = $db->prepare($check_query);
         
         if (!$check_stmt) {
-            throw new Exception("Erreur de préparation de la requête SQL (vérification email).");
+            throw new Exception("Erreur de préparation de la requête SQL (vérification utilisateur).");
         }
         
+        $check_stmt->bindParam(':username', $username);
         $check_stmt->bindParam(':email', $email);
         $success = $check_stmt->execute();
         
         if (!$success) {
             $errorInfo = $check_stmt->errorInfo();
-            throw new Exception("Erreur d'exécution SQL (vérification email): " . $errorInfo[2]);
+            throw new Exception("Erreur d'exécution SQL (vérification utilisateur): " . $errorInfo[2]);
         }
         
-        if ($check_stmt->fetchColumn() > 0) {
-            logMessage("Email déjà utilisé: $email", 'WARNING');
-            $_SESSION['error'] = "Cet email est déjà utilisé par un autre technicien";
-            header('Location: index.php');
-            exit;
-        }
+        $result = $check_stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Vérifier si le nom d'utilisateur existe déjà
-        $check_query = "SELECT COUNT(*) FROM technicien WHERE user_name = :user_name";
-        $check_stmt = $db->prepare($check_query);
-        
-        if (!$check_stmt) {
-            throw new Exception("Erreur de préparation de la requête SQL (vérification nom d'utilisateur).");
-        }
-        
-        $check_stmt->bindParam(':user_name', $user_name);
-        $success = $check_stmt->execute();
-        
-        if (!$success) {
-            $errorInfo = $check_stmt->errorInfo();
-            throw new Exception("Erreur d'exécution SQL (vérification nom d'utilisateur): " . $errorInfo[2]);
-        }
-        
-        if ($check_stmt->fetchColumn() > 0) {
-            logMessage("Nom d'utilisateur déjà utilisé: $user_name", 'WARNING');
-            $_SESSION['error'] = "Ce nom d'utilisateur est déjà utilisé";
-            header('Location: index.php');
+        if ($result['count'] > 0) {
+            logMessage("Utilisateur ou email déjà existant: $username, $email", 'WARNING');
+            $_SESSION['error'] = "Le nom d'utilisateur ou l'email existe déjà.";
+            header('Location: index.php?type=admin');
             exit;
         }
         
         // Générer un mot de passe aléatoire
         $password = generateRandomPassword();
-        logMessage("Mot de passe généré pour $user_name");
+        logMessage("Mot de passe généré pour $username");
         
-        // Hasher le mot de passe
+        // Hacher le mot de passe
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
         // Préparer la requête d'insertion
-        $query = "INSERT INTO technicien (nom, prenom, date_naissance, specialite, email, user_name, password) 
-                  VALUES (:nom, :prenom, :date_naissance, :specialite, :email, :user_name, :password)";
+        $query = "INSERT INTO users (username, password, nom, prenom, email, role, date_creation, actif) 
+                VALUES (:username, :password, :nom, :prenom, :email, :role, NOW(), 1)";
         
         $stmt = $db->prepare($query);
         
@@ -207,14 +182,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Erreur de préparation de la requête SQL d'insertion.");
         }
         
-        // Lier les paramètres
+        $stmt->bindParam(':username', $username);
+        $stmt->bindParam(':password', $hashed_password);
         $stmt->bindParam(':nom', $nom);
         $stmt->bindParam(':prenom', $prenom);
-        $stmt->bindParam(':date_naissance', $date_naissance);
-        $stmt->bindParam(':specialite', $specialite);
         $stmt->bindParam(':email', $email);
-        $stmt->bindParam(':user_name', $user_name);
-        $stmt->bindParam(':password', $hashed_password);
+        $stmt->bindParam(':role', $role);
         
         // Exécuter la requête
         $success = $stmt->execute();
@@ -224,11 +197,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Erreur d'exécution SQL (insertion): " . $errorInfo[2]);
         }
         
-        // Récupérer l'ID du technicien inséré
-        $technicien_id = $db->lastInsertId();
-        logMessage("Technicien inséré avec ID: $technicien_id");
+        // Récupérer l'ID de l'utilisateur inséré
+        $user_id = $db->lastInsertId();
+        logMessage("Utilisateur inséré avec ID: $user_id");
         
-        // Envoyer un email au technicien avec ses identifiants
+        // Envoyer un email à l'utilisateur avec ses identifiants
         $mail = new PHPMailer(true);
         
         try {
@@ -272,8 +245,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $emailData = [
                 'prenom' => htmlspecialchars($prenom),
                 'nom' => htmlspecialchars($nom),
-                'username' => htmlspecialchars($user_name),
+                'username' => htmlspecialchars($username),
                 'password' => htmlspecialchars($password),
+                'role' => htmlspecialchars($role),
                 'annee' => date('Y')
             ];
             
@@ -289,23 +263,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->send();
             logMessage("Email envoyé avec succès à $email");
             
-            $_SESSION['success'] = "Le technicien a été ajouté avec succès et ses identifiants ont été envoyés par email";
+            $_SESSION['success'] = "L'utilisateur a été ajouté avec succès et ses identifiants ont été envoyés par email.";
         } catch (Exception $e) {
             logMessage("Échec de l'envoi de l'email: " . $e->getMessage(), 'ERROR');
-            $_SESSION['success'] = "Le technicien a été ajouté avec succès mais l'envoi de l'email a échoué";
+            $_SESSION['success'] = "L'utilisateur a été ajouté avec succès mais l'envoi de l'email a échoué.";
         }
     } catch (Exception $e) {
         logMessage("Erreur: " . $e->getMessage(), 'ERROR');
         $_SESSION['error'] = "Une erreur est survenue: " . $e->getMessage();
     }
     
-    // Rediriger vers la page des techniciens
-    header('Location: index.php');
+    // Rediriger vers la page d'administration
+    header('Location: index.php?type=admin');
     exit;
 } else {
-    // Si la méthode n'est pas POST, rediriger vers la page des techniciens
+    // Si la méthode n'est pas POST, rediriger vers la page d'administration
     logMessage("Tentative d'accès direct au script sans soumission de formulaire", 'WARNING');
-    header('Location: index.php');
+    header('Location: index.php?type=admin');
     exit;
 }
 
@@ -345,7 +319,8 @@ function getEmailTemplate($data) {
             </div>
             <div class="content">
                 <p>Bonjour ' . $data['prenom'] . ' ' . $data['nom'] . ',</p>
-                <p>Votre compte a été créé avec succès. Voici vos identifiants de connexion :</p>
+                <p>Votre compte a été créé avec succès. Vous avez été enregistré avec le rôle de <span class="highlight">' . $data['role'] . '</span>.</p>
+                <p>Voici vos identifiants de connexion :</p>
                 
                 <div class="info-box">
                     <p><strong>Nom d\'utilisateur:</strong> <span class="highlight">' . $data['username'] . '</span></p>
@@ -378,7 +353,8 @@ function getEmailTemplate($data) {
 function getPlainTextEmail($data) {
     return 'Bonjour ' . $data['prenom'] . ' ' . $data['nom'] . ',
 
-Votre compte a été créé avec succès. Voici vos identifiants de connexion :
+Votre compte a été créé avec succès. Vous avez été enregistré avec le rôle de ' . $data['role'] . '.
+Voici vos identifiants de connexion :
 
 Nom d\'utilisateur: ' . $data['username'] . '
 Mot de passe: ' . $data['password'] . '

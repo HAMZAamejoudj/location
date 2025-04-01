@@ -23,11 +23,6 @@ if (!isset($_SESSION['user_id'])) {
     $_SESSION['user_id'] = 1;
 }
 
-// Utilisateur temporaire pour éviter l'erreur
-$currentUser = [
-    'name' => 'Utilisateur Test',
-    'role' => 'Administrateur'
-];
 // Définir l'en-tête de la réponse comme JSON
 header('Content-Type: application/json');
 
@@ -57,7 +52,7 @@ try {
     $db = $database->getConnection();
     
     // Préparer la requête
-    $query = "SELECT id, nom, prenom, date_naissance, specialite 
+    $query = "SELECT id, nom, prenom, date_naissance, specialite, email, user_name 
               FROM technicien 
               WHERE id = :id 
               LIMIT 1";
@@ -85,3 +80,4 @@ try {
         'message' => 'Erreur de base de données: ' . $e->getMessage()
     ]);
 }
+?>
