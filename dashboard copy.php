@@ -586,7 +586,68 @@ $monthly_revenue_data_json = json_encode($monthly_revenue_data);
                 </div>
             </div>
 
-            
+                       <!-- Quick Access Sections -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Stock Management -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Gestion du stock</h3>
+                    <div class="space-y-2">
+                        <a href="stock/" class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200">
+                            <div class="bg-blue-100 p-2 rounded-full mr-4">
+                                <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 class="font-medium text-gray-800">Liste des articles</h4>
+                                <p class="text-sm text-gray-600">Consulter et gérer le stock de pièces et fournitures</p>
+                            </div>
+                        </a>
+                        <a href="stock/create.php" class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200">
+                            <div class="bg-green-100 p-2 rounded-full mr-4">
+                                <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 class="font-medium text-gray-800">Ajouter un article</h4>
+                                <p class="text-sm text-gray-600">Créer un nouvel article dans l'inventaire</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Orders Management -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Bons de commande & livraison</h3>
+                    <div class="space-y-2">
+                        <a href="orders/" class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200">
+                            <div class="bg-yellow-100 p-2 rounded-full mr-4">
+                                <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 class="font-medium text-gray-800">Bons de commande</h4>
+                                <p class="text-sm text-gray-600">Gérer les commandes fournisseurs</p>
+                            </div>
+                        </a>
+                        <a href="deliveries/" class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200">
+                            <div class="bg-purple-100 p-2 rounded-full mr-4">
+                                <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 class="font-medium text-gray-800">Bons de livraison</h4>
+                                <p class="text-sm text-gray-600">Gérer les livraisons clients</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Main Actions Grid -->
             <h3 class="text-xl font-semibold text-gray-800 mb-4">Accès rapide</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

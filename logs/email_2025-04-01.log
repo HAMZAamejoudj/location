@@ -1,0 +1,13 @@
+[2025-04-01 06:15:45] [INFO] Fichier chargé: Configuration de la base de données
+[2025-04-01 06:15:45] [INFO] Fichier chargé: Fonctions utilitaires
+[2025-04-01 06:15:45] [INFO] Fichier chargé: PHPMailer Exception
+[2025-04-01 06:15:45] [INFO] Fichier chargé: PHPMailer Core
+[2025-04-01 06:15:45] [INFO] Fichier chargé: PHPMailer SMTP
+[2025-04-01 06:15:45] [INFO] Traitement de la facture #1
+[2025-04-01 06:15:45] [INFO] Facture #1 récupérée: FAC-20250323-4501
+[2025-04-01 06:15:45] [WARNING] Fonction generateInvoicePDF non disponible
+[2025-04-01 06:15:45] [INFO] Configuration SMTP terminée
+[2025-04-01 06:15:45] [INFO] Destinataires configurés: yassine.maadane99@gmail.com
+[2025-04-01 06:15:45] [INFO] Contenu de l'email préparé
+[2025-04-01 06:15:48] [INFO] Email envoyé avec succès à yassine.maadane99@gmail.com
+[2025-04-01 06:15:48] [INFO] Statut d'envoi mis à jour dans la base de données

@@ -12,3 +12,26 @@
 [2025-04-01 01:24:42] [INFO] Destinataires configurés: ayoubbellahcen10@gmail.com
 [2025-04-01 01:24:42] [INFO] Contenu de l'email préparé
 [2025-04-01 01:24:45] [INFO] Email envoyé avec succès à ayoubbellahcen10@gmail.com
+[2025-04-01 06:06:11] [INFO] Fichier chargé: Configuration de la base de données
+[2025-04-01 06:06:11] [INFO] Fichier chargé: Fonctions utilitaires
+[2025-04-01 06:06:11] [INFO] Fichier chargé: PHPMailer Exception
+[2025-04-01 06:06:11] [INFO] Fichier chargé: PHPMailer Core
+[2025-04-01 06:06:11] [INFO] Fichier chargé: PHPMailer SMTP
+[2025-04-01 06:06:11] [INFO] Traitement du formulaire d'ajout d'utilisateur
+[2025-04-01 06:06:11] [INFO] Données reçues: Username=Yassine Maadane, Nom=MAADANE, Prénom=Yassine, Email=yassine.maadane99@gmail.com, Role=admin
+[2025-04-01 06:06:11] [INFO] Connexion à la base de données établie
+[2025-04-01 06:06:11] [INFO] Mot de passe généré pour Yassine Maadane
+[2025-04-01 06:06:11] [INFO] Utilisateur inséré avec ID: 3
+[2025-04-01 06:06:11] [INFO] Configuration SMTP terminée
+[2025-04-01 06:06:11] [INFO] Destinataires configurés: yassine.maadane99@gmail.com
+[2025-04-01 06:06:11] [INFO] Contenu de l'email préparé
+[2025-04-01 06:06:14] [INFO] Email envoyé avec succès à yassine.maadane99@gmail.com
+[2025-04-01 14:33:26] [INFO] Fichier chargé: Configuration de la base de données
+[2025-04-01 14:33:26] [INFO] Fichier chargé: Fonctions utilitaires
+[2025-04-01 14:33:26] [INFO] Fichier chargé: PHPMailer Exception
+[2025-04-01 14:33:26] [INFO] Fichier chargé: PHPMailer Core
+[2025-04-01 14:33:26] [INFO] Fichier chargé: PHPMailer SMTP
+[2025-04-01 14:33:26] [INFO] Traitement du formulaire d'ajout d'utilisateur
+[2025-04-01 14:33:26] [INFO] Données reçues: Username=Zakaria Admin, Nom=Zakaria, Prénom=Zakaria, Email=yassine.maadane99@gmail.com, Role=admin
+[2025-04-01 14:33:26] [INFO] Connexion à la base de données établie
+[2025-04-01 14:33:26] [WARNING] Utilisateur ou email déjà existant: Zakaria Admin, yassine.maadane99@gmail.com

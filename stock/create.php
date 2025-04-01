@@ -241,8 +241,8 @@ include $root_path . '/includes/header.php';
                                 <option value="">Sélectionner un emplacement</option>
                                 <?php
                                 $emplacements = [
-                                    'Rayon A', 'Rayon B', 'Rayon C', 'Rayon D', 
-                                    'Stock arrière', 'Vitrine', 'Réserve étage', 'Entrepôt externe'
+                                    'Casa Roche noir', 'Casa Aeroport', 'Rabat', 'Marrakech', 
+                                    'Marrakech Aeroport'
                                 ];
                                 foreach ($emplacements as $emp) {
                                     $selected = (isset($_POST['emplacement']) && $_POST['emplacement'] === $emp) ? 'selected' : '';
