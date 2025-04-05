@@ -30,7 +30,13 @@ $currentUser = [
 // Récupérer la liste des clients pour le formulaire
 $database = new Database();
 $db = $database->getConnection();
-$query = "SELECT id, nom, prenom FROM clients ORDER BY nom, prenom";
+$query = "SELECT  cl.id as client_id,
+                     CASE 
+                        WHEN cl.type_client_id = 1 THEN CONCAT(cl.prenom, ' ', cl.nom)
+                        ELSE CONCAT(cl.raison_sociale)
+                     END AS Nom_Client
+                     from clients cl;"
+                     ;
 $stmt = $db->prepare($query);
 $stmt->execute();
 $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -196,8 +202,8 @@ include $root_path . '/includes/header.php';
                                 <select id="client_id" name="client_id" class="w-full px-4 py-2 border <?php echo isset($errors['client_id']) ? 'border-red-500' : 'border-gray-300'; ?> rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
                                     <option value="">Sélectionner un client</option>
                                     <?php foreach ($clients as $client): ?>
-                                        <option value="<?php echo $client['id']; ?>" <?php echo (isset($_POST['client_id']) && $_POST['client_id'] == $client['id']) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($client['nom'] . ' ' . $client['prenom']); ?>
+                                        <option value="<?php echo $client['client_id']; ?>" <?php echo (isset($_POST['client_id']) && $_POST['client_id'] == $client['client_id']) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($client['Nom_Client']); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>

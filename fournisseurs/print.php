@@ -360,7 +360,7 @@ if ($format === 'pdf') {
         </table>
         
         <div class="footer">
-            <p>© <?php echo date('Y'); ?> - Système de Gestion des Fournisseurs</p>
+            <p>© <?php echo date('Y'); ?> - Surprise-autoservice</p>
         </div>
         
         <div class="no-print" style="margin-top: 30px; text-align: center;">

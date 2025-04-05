@@ -48,7 +48,7 @@ if (!$facture) {
 // Récupérer les détails de la facture (articles)
 $query_details = "SELECT fd.*, a.designation, a.reference
                   FROM facture_details fd
-                  LEFT JOIN article a ON fd.article_id = a.id
+                  LEFT JOIN articles a ON fd.article_id = a.id
                   WHERE fd.ID_Facture = :id";
 $stmt_details = $db->prepare($query_details);
 $stmt_details->bindParam(':id', $facture_id);
