@@ -7,7 +7,7 @@
 class Database {
     // Paramètres de connexion à la base de données
     private $host = "localhost";
-    private $db_name = "sas_reparation_auto";
+    private $db_name = "location";
     private $username = "root";
     private $password = "";
     public $conn;

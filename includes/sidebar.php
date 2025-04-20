@@ -1,165 +1,335 @@
-<?php
-// Définir la page active
-$current_page = basename($_SERVER['PHP_SELF']);
-$current_dir = basename(dirname($_SERVER['PHP_SELF']));
+<style>
+        :root {
+            --primary-color: #3a7bd5;
+            --sidebar-bg: #fff;
+            --sidebar-hover: #f5f8ff;
+            --text-color: #333;
+            --light-text: #777;
+            --border-color: #eaeaea;
+            --warning-color: #ff6b6b;
+            --accent-color: #ffa64d;
+        }
 
-// Fonction pour vérifier si un lien est actif
-function is_active($page, $dir = '') {
-    global $current_page, $current_dir;
-    
-    if (empty($dir)) {
-        return $current_page == $page ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-700 hover:text-white';
-    } else {
-        return $current_dir == $dir ? 'bg-indigo-800 text-white' : 'text-indigo-100 hover:bg-indigo-700 hover:text-white';
-    }
-}
-?>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
 
-<!-- Sidebar -->
-<div class="w-64 bg-indigo-900 text-white flex flex-col h-screen">
-    <!-- Logo -->
-    <div class="px-4 py-5 flex items-center justify-center">
-        <span class="text-2xl font-semibold tracking-wider">SAS Auto</span>
-    </div>
-    <!-- User info -->
-    <div class="px-4 py-3 border-t border-b border-indigo-800">
-        <div class="flex items-center">
-            <div class="w-10 h-10 rounded-full bg-indigo-700 flex items-center justify-center text-xl font-semibold mr-3">
-                <?php echo substr(htmlspecialchars($currentUser['name']), 0, 1); ?>
-            </div>
-            <div>
-                <p class="text-sm font-medium"><?php echo htmlspecialchars($currentUser['name']); ?></p>
-                <p class="text-xs text-indigo-300"><?php echo htmlspecialchars($currentUser['role']); ?></p>
+        body {
+            background-color: #f5f7fb;
+        }
+
+        .sidebar {
+            width: 280px;
+            height: 100vh;
+            background-color: var(--sidebar-bg);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .logo-area {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            background-color: #1a1a2e;
+            color: white;
+        }
+
+        .logo-area img {
+            width: 30px;
+            margin-right: 12px;
+        }
+
+        .logo-area h2 {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .logo-area span {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+
+        .user-panel {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .user-panel h3 {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .user-panel p {
+            font-size: 14px;
+            color: var(--light-text);
+        }
+
+        .location-select {
+            margin-top: 12px;
+            position: relative;
+        }
+
+        .location-select select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            appearance: none;
+            font-size: 14px;
+            color: var(--text-color);
+            background-color: white;
+        }
+
+        .location-select::after {
+            content: '▼';
+            font-size: 12px;
+            color: var(--light-text);
+            position: absolute;
+            right: 12px;
+            top: 10px;
+        }
+
+        .notification-area {
+            padding: 12px;
+            font-size: 12px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .notification-area p {
+            margin-bottom: 4px;
+        }
+
+        .notification-red {
+            color: var(--warning-color);
+        }
+
+        .notification-orange {
+            color: var(--accent-color);
+        }
+
+        .menu-section {
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .menu-title {
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--light-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .menu-title i {
+            font-size: 12px;
+        }
+
+        .menu-items {
+            list-style: none;
+        }
+
+        .menu-item {
+            display: block;
+            text-decoration: none;
+            padding: 12px 20px 12px 45px;
+            font-size: 14px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .menu-item:hover {
+            background-color: var(--sidebar-hover);
+            color: var(--primary-color);
+        }
+
+        .menu-item.active {
+            background-color: var(--sidebar-hover);
+            color: var(--primary-color);
+            font-weight: 500;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .menu-item i {
+            position: absolute;
+            left: 20px;
+            font-size: 15px;
+            width: 20px;
+        }
+
+        .logout-btn {
+            margin-top: auto;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: var(--light-text);
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: auto;
+            text-decoration: none;
+        }
+
+        .logout-btn:hover {
+            background-color: var(--sidebar-hover);
+            color: var(--warning-color);
+        }
+
+        .logout-btn i {
+            margin-right: 10px;
+            font-size: 15px;
+        }
+
+        /* Pour les icônes, utilisons Font Awesome */
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+    </style>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="logo-area">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIyLjY4IDcuOTNDMjEuODUgNi41NiAyMSA1Ljc1IDIwIDUuNzVIMTRjLS42NCAwLTEuMjcuMjYtMS43My43M0wxMSA3Ljc1aC0xYy0uNTUgMC0xIC40NS0xIDFzLjQ1IDEgMSAxaDEuNWMuMjggMCAuNS4yMi41LjV2Mi41YzAgLjI4LS4yMi41LS41LjVoLTVjLS44MiAwLTEuNTUtLjM3LTIuMDQtLjk2TDMuMyAxMS4xM2MtLjcxLS44NC0xLjgtMS4zLTIuOTUtMS4xNGwtLjE5LjAzYy0uMDUuMDEtLjkuMTgtLjE2LjM1di44NWMwIC41Ni4xOCAxLjA4LjQ5IDEuNTJsMy45MyA1LjE5YTQuOTggNC45OCAwIDAgMCAzLjk1IDEuOThoNi4xM2MxLjQyIDAgMi44OS0uNiAzLjg5LTEuNTlsMy44LTMuOGMxLjU5LTEuNTkgMS41OS00LjE5IDAtNS43OGwtMi41Mi0yLjUzWiIvPjwvc3ZnPg==" alt="Logo">
+            <h2>Flotte de Location<span>v3.2.4</span></h2>
+        </div>
+
+        <div class="user-panel">
+            <h3>Panneau de Réception</h3>
+            <p>Yousra El najmi</p>
+            <div class="location-select">
+                <select>
+                    <option>Casablanca Centre-ville</option>
+                    <option>Rabat Centre</option>
+                    <option>Marrakech Aéroport</option>
+                </select>
             </div>
         </div>
-    </div>
-    
-    <!-- Navigation -->
-    <nav class="mt-4 flex-1 overflow-y-auto">
-        <ul>
-            <!-- Dashboard -->
-            <li>
-                <a href="/sas-gestion-auto/dashboard.php" class="flex items-center px-6 py-3 <?php echo is_active('dashboard.php'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
-                    </svg>
-                    <span>Tableau de bord</span>
-                </a>
-            </li>
-            
-            <!-- Clients -->
-            <li>
-                <a href="/sas-gestion-auto/clients/" class="flex items-center px-6 py-3 <?php echo is_active('', 'clients'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                    </svg>
-                    <span>Clients</span>
-                </a>
-            </li>
-            <!-- Fournisseurs -->
-            <li>
-                <a href="/sas-gestion-auto/fournisseurs/" class="flex items-center px-6 py-3 <?php echo is_active('', 'fournisseurs'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17H3V5h13v4m0 4h5l3 4v2h-2m-4-6V9a2 2 0 00-2-2h-4M5 21h2m10 0h2M3 17h18m-6 4a2 2 0 100-4 2 2 0 000 4m-10 0a2 2 0 100-4 2 2 0 000 4"></path>
-                    </svg>
-                    <span>Fournisseurs</span>
-                </a>
-            </li>
 
-            
-            <!-- Vehicles -->
-            <li>
-                <a href="/sas-gestion-auto/vehicles/index.php" class="flex items-center px-6 py-3 <?php echo is_active('', 'vehicles'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                    </svg>
-                    <span>Véhicules</span>
-                </a>
-            </li>
-            
-            <!-- Interventions -->
-            <li>
-                <a href="/sas-gestion-auto/interventions/" class="flex items-center px-6 py-3 <?php echo is_active('', 'interventions'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                    <span>Interventions</span>
-                </a>
-            </li>
-            
-            <!-- Stock -->
-            <li>
-                <a href="/sas-gestion-auto/stock/" class="flex items-center px-6 py-3 <?php echo is_active('', 'stock'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                    </svg>
-                    <span>Stock</span>
-                </a>
-            </li>
-            <!-- Offres -->
-            <li>
-                <a href="/sas-gestion-auto/offres/" class="flex items-center px-6 py-3 <?php echo is_active('', 'offres'); ?>">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7a1 1 0 011-1h4.586a1 1 0 01.707.293l7.414 7.414a1 1 0 010 1.414l-4.586 4.586a1 1 0 01-1.414 0L4.293 9.707A1 1 0 014 9V8a1 1 0 011-1h2z" />
-  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01" />
-</svg>
+        <div class="notification-area">
+            <p class="notification-red">Dernière Affectation il y a 12 heure(s)</p>
+            <p class="notification-red">Dernière Synchronisation il y a 12 heure(s)</p>
+            <p class="notification-orange">Il y a 1 Commande(s) Non Affectée(s)</p>
+        </div>
 
+        <div class="menu-section">
+            <div class="menu-title">
+                Principal <i class="fas fa-chevron-down"></i>
+            </div>
+            <ul class="menu-items">
+                <a href="./accueil.php" class="menu-item">
+                    <i class="fas fa-home"></i>
+                    Accueil
+                </a>
+                <a href="dashboard.php" class="menu-item active">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Tableau de Bord
+                </a>
+                <a href="./calendrier-affectation.php" class="menu-item">
+                    <i class="far fa-calendar-alt"></i>
+                    Calendrier d'Affectation
+                </a>
+            </ul>
+        </div>
 
-                    <span>Offres</span>
+        <div class="menu-section">
+            <div class="menu-title">
+                Commandes <i class="fas fa-chevron-down"></i>
+            </div>
+            <ul class="menu-items">
+                <a href="./nouvelle-commande.php" class="menu-item">
+                    <i class="fas fa-plus"></i>
+                    Nouvelle Commande
                 </a>
-            </li>
-            
-            <!-- Invoices -->
-            <li>
-                <a href="/sas-gestion-auto/invoices/" class="flex items-center px-6 py-3 <?php echo is_active('', 'invoices'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    <span>Factures</span>
+                <a href="./livraisons.php" class="menu-item">
+                    <i class="fas fa-truck"></i>
+                    Livraisons
                 </a>
-            </li>
-            
-            <!-- Orders -->
-            <li>
-                <a href="/sas-gestion-auto/orders/" class="flex items-center px-6 py-3 <?php echo is_active('', 'orders'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                    </svg>
-                    <span>Commandes</span>
+                <a href="./collectes.php" class="menu-item">
+                    <i class="fas fa-exchange-alt"></i>
+                    Collectes
                 </a>
-            </li>
-            
-            <!-- Deliveries -->
-          <!--   <li>
-                <a href="/sas-gestion-auto/deliveries/" class="flex items-center px-6 py-3 <?php echo is_active('', 'deliveries'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
-                    </svg>
-                    <span>Livraisons</span>
+                <a href="./en-circulation.php" class="menu-item">
+                    <i class="fas fa-road"></i>
+                    En Circulation
                 </a>
-            </li> -->
-            
-            <!-- Users -->
-            <li>
-                <a href="/sas-gestion-auto/users/" class="flex items-center px-6 py-3 <?php echo is_active('', 'users'); ?>">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
-                    <span>Utilisateurs</span>
+                <a href="./recentes.php" class="menu-item">
+                    <i class="fas fa-history"></i>
+                    Récentes
                 </a>
-            </li>
-        </ul>
-    </nav>
-    
-    <!-- Footer -->
-    <div class="border-t border-indigo-800 p-4">
-        <a href="/sas-gestion-auto/logout.php" class="flex items-center text-indigo-100 hover:text-white transition duration-200">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-            </svg>
-            <span>Déconnexion</span>
+                <a href="./toutes.php" class="menu-item">
+                    <i class="fas fa-list"></i>
+                    Toutes
+                </a>
+            </ul>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-title">
+                Flotte <i class="fas fa-chevron-down"></i>
+            </div>
+            <ul class="menu-items">
+                <a href="voitures/index.php" class="menu-item">
+                    <i class="fas fa-car"></i>
+                    Voitures
+                </a>
+                <a href="./location-courte-duree.php" class="menu-item">
+                    <i class="fas fa-file-contract"></i>
+                    Location Courte Durée
+                </a>
+                <a href="./hors-base.php" class="menu-item">
+                    <i class="fas fa-warehouse"></i>
+                    Hors Base
+                </a>
+                <a href="./hors-service.php" class="menu-item">
+                    <i class="fas fa-tools"></i>
+                    Hors Service
+                </a>
+                <a href="./duree-location.php" class="menu-item">
+                    <i class="far fa-clock"></i>
+                    Durée de Location
+                </a>
+                <a href="./mouvements.php" class="menu-item">
+                    <i class="fas fa-exchange-alt"></i>
+                    Mouvements de Véhicules
+                </a>
+            </ul>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-title">
+                Contrôles <i class="fas fa-chevron-down"></i>
+            </div>
+            <ul class="menu-items">
+                <a href="./parametres.php" class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    Paramètres
+                </a>
+                <a href="./utilisateurs.php" class="menu-item">
+                    <i class="fas fa-users"></i>
+                    Utilisateurs
+                </a>
+            </ul>
+        </div>
+
+        <a href="./deconnexion.php" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            Déconnexion
         </a>
     </div>
-</div>
