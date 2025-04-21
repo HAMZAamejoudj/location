@@ -1,3 +1,20 @@
+<?php
+// Enregistrez ce fichier sous le nom sidebar.php
+// Définir le chemin de base du site
+$base_url = '/location'; // Changez cette valeur selon votre configuration
+
+// Déterminer la page active
+$current_page = $_SERVER['PHP_SELF'];
+
+// Fonction pour vérifier si un lien est actif
+function isActive($page) {
+    global $current_page;
+    if (strpos($current_page, $page) !== false) {
+        return 'active';
+    }
+    return '';
+}
+?>
 <style>
         :root {
             --primary-color: #3a7bd5;
@@ -204,7 +221,7 @@
 </head>
 <body>
 
-    <div class="sidebar">
+<div class="sidebar">
         <div class="logo-area">
             <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIyLjY4IDcuOTNDMjEuODUgNi41NiAyMSA1Ljc1IDIwIDUuNzVIMTRjLS42NCAwLTEuMjcuMjYtMS43My43M0wxMSA3Ljc1aC0xYy0uNTUgMC0xIC40NS0xIDFzLjQ1IDEgMSAxaDEuNWMuMjggMCAuNS4yMi41LjV2Mi41YzAgLjI4LS4yMi41LS41LjVoLTVjLS44MiAwLTEuNTUtLjM3LTIuMDQtLjk2TDMuMyAxMS4xM2MtLjcxLS44NC0xLjgtMS4zLTIuOTUtMS4xNGwtLjE5LjAzYy0uMDUuMDEtLjkuMTgtLjE2LjM1di44NWMwIC41Ni4xOCAxLjA4LjQ5IDEuNTJsMy45MyA1LjE5YTQuOTggNC45OCAwIDAgMCAzLjk1IDEuOThoNi4xM2MxLjQyIDAgMi44OS0uNiAzLjg5LTEuNTlsMy44LTMuOGMxLjU5LTEuNTkgMS41OS00LjE5IDAtNS43OGwtMi41Mi0yLjUzWiIvPjwvc3ZnPg==" alt="Logo">
             <h2>Flotte de Location<span>v3.2.4</span></h2>
@@ -233,15 +250,15 @@
                 Principal <i class="fas fa-chevron-down"></i>
             </div>
             <ul class="menu-items">
-                <a href="./accueil.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/dashboard.php" class="menu-item <?php echo isActive('dashboard.php'); ?>">
                     <i class="fas fa-home"></i>
                     Accueil
                 </a>
-                <a href="dashboard.php" class="menu-item active">
+                <a href="<?php echo $base_url; ?>/dashboard.php" class="menu-item <?php echo isActive('dashboard.php'); ?>">
                     <i class="fas fa-tachometer-alt"></i>
                     Tableau de Bord
                 </a>
-                <a href="./calendrier-affectation.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/calendrier-affectation.php" class="menu-item <?php echo isActive('calendrier-affectation.php'); ?>">
                     <i class="far fa-calendar-alt"></i>
                     Calendrier d'Affectation
                 </a>
@@ -253,27 +270,27 @@
                 Commandes <i class="fas fa-chevron-down"></i>
             </div>
             <ul class="menu-items">
-                <a href="./nouvelle-commande.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/nouvelle-commande.php" class="menu-item <?php echo isActive('nouvelle-commande.php'); ?>">
                     <i class="fas fa-plus"></i>
                     Nouvelle Commande
                 </a>
-                <a href="./livraisons.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/livraisons.php" class="menu-item <?php echo isActive('livraisons.php'); ?>">
                     <i class="fas fa-truck"></i>
                     Livraisons
                 </a>
-                <a href="./collectes.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/collectes.php" class="menu-item <?php echo isActive('collectes.php'); ?>">
                     <i class="fas fa-exchange-alt"></i>
                     Collectes
                 </a>
-                <a href="./en-circulation.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/en-circulation.php" class="menu-item <?php echo isActive('en-circulation.php'); ?>">
                     <i class="fas fa-road"></i>
                     En Circulation
                 </a>
-                <a href="./recentes.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/recentes.php" class="menu-item <?php echo isActive('recentes.php'); ?>">
                     <i class="fas fa-history"></i>
                     Récentes
                 </a>
-                <a href="./toutes.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/toutes.php" class="menu-item <?php echo isActive('toutes.php'); ?>">
                     <i class="fas fa-list"></i>
                     Toutes
                 </a>
@@ -285,27 +302,31 @@
                 Flotte <i class="fas fa-chevron-down"></i>
             </div>
             <ul class="menu-items">
-                <a href="voitures/index.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/voitures/index.php" class="menu-item <?php echo isActive('voitures/index.php'); ?>">
                     <i class="fas fa-car"></i>
                     Voitures
                 </a>
-                <a href="./location-courte-duree.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/categorie/index.php" class="menu-item <?php echo isActive('categorie/'); ?>">
+                    <i class="fas fa-tags"></i>
+                    Catégories de Voitures
+                </a>
+                <a href="<?php echo $base_url; ?>/location-courte-duree.php" class="menu-item <?php echo isActive('location-courte-duree.php'); ?>">
                     <i class="fas fa-file-contract"></i>
                     Location Courte Durée
                 </a>
-                <a href="./hors-base.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/garage/index.php" class="menu-item <?php echo isActive('garage/index.php'); ?>">
                     <i class="fas fa-warehouse"></i>
                     Hors Base
                 </a>
-                <a href="./hors-service.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/voitures_hors_service/index.php" class="menu-item <?php echo isActive('voitures_hors_service'); ?>">
                     <i class="fas fa-tools"></i>
                     Hors Service
                 </a>
-                <a href="./duree-location.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/duree-location.php" class="menu-item <?php echo isActive('duree-location.php'); ?>">
                     <i class="far fa-clock"></i>
                     Durée de Location
                 </a>
-                <a href="./mouvements.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/mouvements.php" class="menu-item <?php echo isActive('mouvements.php'); ?>">
                     <i class="fas fa-exchange-alt"></i>
                     Mouvements de Véhicules
                 </a>
@@ -317,18 +338,18 @@
                 Contrôles <i class="fas fa-chevron-down"></i>
             </div>
             <ul class="menu-items">
-                <a href="./parametres.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/parametres.php" class="menu-item <?php echo isActive('parametres.php'); ?>">
                     <i class="fas fa-cog"></i>
                     Paramètres
                 </a>
-                <a href="./utilisateurs.php" class="menu-item">
+                <a href="<?php echo $base_url; ?>/utilisateurs.php" class="menu-item <?php echo isActive('utilisateurs.php'); ?>">
                     <i class="fas fa-users"></i>
                     Utilisateurs
                 </a>
             </ul>
         </div>
 
-        <a href="./deconnexion.php" class="logout-btn">
+        <a href="<?php echo $base_url; ?>/deconnexion.php" class="logout-btn">
             <i class="fas fa-sign-out-alt"></i>
             Déconnexion
         </a>
